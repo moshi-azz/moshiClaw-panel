@@ -6,6 +6,7 @@ node_modules/
 .env.*
 !.env.example
 certs/
+check_models.js
 
 # Logs e historial
 logs

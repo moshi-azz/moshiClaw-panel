@@ -1,0 +1,26 @@
+# Dependencias
+node_modules/
+
+# Entornos y secretos
+.env
+.env.*
+!.env.example
+certs/
+
+# Logs e historial
+logs
+*.log
+npm-debug.log*
+
+# Editores y SO
+.vscode/
+.idea/
+.DS_Store
+*.swp
+
+# Claude/Agentes
+.claude/
+
+# Builds (por si se agrega frontend build system en el futuro)
+dist/
+build/

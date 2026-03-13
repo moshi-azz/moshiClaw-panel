@@ -1,0 +1,1301 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="moshiClaw">
+  <meta name="theme-color" content="#0d0d0d">
+  <title>moshiClaw Panel</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- xterm.js -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xterm-addon-web-links@0.9.0/lib/xterm-addon-web-links.min.js"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  /* Bloquear zoom por doble tap en toda la app */
+  * { touch-action: manipulation; }
+
+  :root {
+    --bg: #09090b;
+    --surface: rgba(24, 24, 27, 0.65);
+    --surface-solid: #18181b;
+    --surface2: rgba(39, 39, 42, 0.65);
+    --surface2-solid: #27272a;
+    --surface3: rgba(63, 63, 70, 0.65);
+    --border: rgba(255, 255, 255, 0.08);
+    --border-hover: rgba(255, 255, 255, 0.15);
+    --accent: #3b82f6;
+    --accent-glow: rgba(59, 130, 246, 0.4);
+    --accent-hover: #60a5fa;
+    --accent2: #8b5cf6;
+    --green: #10b981;
+    --red: #ef4444;
+    --orange: #f97316;
+    --yellow: #f59e0b;
+    --text: #f4f4f5;
+    --text2: #a1a1aa;
+    --text3: #71717a;
+    --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  html, body {
+    height: 100%; background: var(--bg); color: var(--text);
+    font-family: 'Outfit', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+    /* Bloquear rebotes de scroll del sistema en iOS/Android */
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x pan-y;
+  }
+
+  /* ─── LOGIN ─────────────────────────────────────────────────────────────── */
+  #login-screen {
+    position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: var(--bg); z-index: 100; padding: 24px;
+  }
+  .login-card {
+    width: 100%; max-width: 380px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 20px; padding: 40px 32px;
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    box-shadow: 0 24px 48px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1);
+  }
+  .login-logo {
+    text-align: center; margin-bottom: 28px;
+  }
+  .login-logo .eagle { font-size: 48px; display: block; margin-bottom: 8px; }
+  .login-logo h1 { font-size: 22px; color: var(--accent); letter-spacing: 2px; font-weight: 700; }
+  .login-logo p { font-size: 12px; color: var(--text3); margin-top: 4px; letter-spacing: 1px; }
+  /* Floating Labels */
+  .form-group { position: relative; margin-bottom: 20px; display: flex; flex-direction: column-reverse; }
+  .form-group label {
+    position: absolute; left: 16px; top: 18px; color: var(--text2); pointer-events: none;
+    font-size: 16px; transition: all 0.2s cubic-bezier(0.4,0,0.2,1); font-weight: 400;
+  }
+  .form-group input {
+    width: 100%; background: var(--surface2-solid); border: 1px solid var(--border);
+    border-radius: 12px; padding: 24px 16px 8px 16px; color: var(--text); font-size: 16px; outline: none;
+    transition: all 0.2s; min-height: 56px;
+  }
+  .form-group input::placeholder { color: transparent; }
+  .form-group input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-glow); }
+  .form-group input:focus + label, .form-group input:not(:placeholder-shown) + label {
+    transform: translateY(-12px); font-size: 11px; font-weight: 600; color: var(--accent); letter-spacing: 0.5px;
+  }
+  .form-group input:not(:focus):not(:placeholder-shown) + label { color: var(--text2); }
+  .btn-login {
+    width: 100%; padding: 16px; background: var(--accent); color: #fff;
+    border: none; border-radius: 12px; font-size: 16px; font-weight: 600;
+    cursor: pointer; letter-spacing: 0.5px; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); margin-top: 8px;
+    display: flex; align-items: center; justify-content: center; min-height: 56px; position: relative; overflow: hidden;
+  }
+  .btn-login:hover { background: var(--accent-hover); }
+  .btn-login:active { transform: scale(0.98); }
+  /* Spinner */
+  .spinner {
+    width: 20px; height: 20px; border: 3px solid rgba(255,255,255,0.3); border-radius: 50%;
+    border-top-color: #fff; animation: spin 0.8s linear infinite; display: none; margin: auto;
+  }
+  .btn-login.loading .spinner { display: block; }
+  .btn-login.loading .btn-text { display: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .login-error { color: var(--red); font-size: 13px; margin-top: 10px; text-align: center; min-height: 18px; }
+  .btn-subtle {
+    background: transparent; border: none; color: var(--text3); font-size: 12px;
+    cursor: pointer; margin-top: 16px; text-decoration: underline; text-decoration-color: transparent;
+    transition: all 0.2s; display: block; width: 100%; text-align: center;
+  }
+  .btn-subtle:hover { color: var(--text2); text-decoration-color: var(--text2); }
+  /* ─── SETTINGS MODAL ────────────────────────────────────────────────────── */
+  #settings-modal {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8);
+    z-index: 200; align-items: center; justify-content: center; padding: 20px;
+  }
+  #settings-modal.open { display: flex; }
+  .settings-card {
+    width: 100%; max-width: 440px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 20px; padding: 32px 24px; max-height: 90vh; overflow-y: auto;
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    box-shadow: 0 24px 48px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1);
+  }
+  .settings-card h2 { font-size: 16px; color: var(--accent); margin-bottom: 20px; letter-spacing: 1px; }
+  .settings-group { margin-bottom: 16px; }
+  .settings-group label { display: block; font-size: 11px; color: var(--text2); margin-bottom: 6px; letter-spacing: 1px; text-transform: uppercase; }
+  .settings-group select, .settings-group input {
+    width: 100%; background: var(--surface2-solid); border: 1px solid var(--border);
+    border-radius: 12px; padding: 14px 16px; color: var(--text); font-size: 16px; outline: none;
+    min-height: 48px; transition: all 0.2s;
+  }
+  .settings-group select:focus, .settings-group input:focus {
+    border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-glow);
+  }
+  .settings-group input[type="password"] { font-family: monospace; }
+  .settings-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .settings-row:last-child { border-bottom: none; }
+  .toggle {
+    width: 44px; height: 24px; background: var(--surface3); border: none;
+    border-radius: 12px; cursor: pointer; position: relative; transition: background 0.2s;
+  }
+  .toggle.on { background: var(--accent); }
+  .toggle::after {
+    content: ''; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px;
+    background: white; border-radius: 10px; transition: transform 0.2s;
+  }
+  .toggle.on::after { transform: translateX(20px); }
+  .btn-save {
+    width: 100%; padding: 16px; background: var(--accent); color: #fff;
+    border: none; border-radius: 12px; font-weight: 600; font-size: 16px; cursor: pointer; margin-top: 16px;
+    min-height: 52px; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .btn-save:hover { background: var(--accent-hover); transform: scale(1.02); }
+  .btn-save:active { transform: scale(0.98); }
+  .btn-close-modal {
+    float: right; background: none; border: none; color: var(--text2); font-size: 20px; cursor: pointer;
+  }
+
+  /* ─── APP LAYOUT ────────────────────────────────────────────────────────── */
+  /* Layout usa posición fija para que el teclado no empuje el header */
+  #app {
+    display: none; flex-direction: column;
+    position: fixed; inset: 0;
+    padding-top: var(--safe-top);
+  }
+  #app.visible { display: flex; }
+
+  /* Header */
+  .header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px; background: var(--surface); border-bottom: 1px solid var(--border);
+    flex-shrink: 0; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  }
+  .header-left { display: flex; align-items: center; gap: 8px; }
+  .header-title { font-size: 15px; font-weight: 700; color: var(--accent); letter-spacing: 1px; }
+  .status-dot {
+    width: 8px; height: 8px; border-radius: 50%; background: var(--green);
+    animation: pulse 2s infinite;
+  }
+  .status-dot.offline { background: var(--red); animation: none; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .header-right { display: flex; gap: 8px; }
+  .icon-btn {
+    width: 36px; height: 36px; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 16px; color: var(--text2); transition: all 0.15s;
+  }
+  .icon-btn:hover { background: var(--surface3); color: var(--text); }
+
+  /* Content area */
+  .content { flex: 1; overflow: hidden; position: relative; }
+
+  /* Panels */
+  .panel { display: none; height: 100%; overflow: hidden; flex-direction: column; }
+  .panel.active { display: flex; }
+
+  /* ─── TAB BAR ───────────────────────────────────────────────────────────── */
+  .tab-bar {
+    display: flex; background: var(--surface); border-top: 1px solid var(--border);
+    padding-bottom: env(safe-area-inset-bottom, 8px); flex-shrink: 0;
+    backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  }
+  .tab-btn {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 12px 4px; gap: 4px; border: none; background: none; cursor: pointer;
+    color: var(--text3); transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); -webkit-tap-highlight-color: transparent;
+    min-height: 56px;
+  }
+  .tab-btn:active { transform: scale(0.92); }
+  .tab-btn.active { color: var(--accent); }
+  .tab-icon { font-size: 20px; }
+  .tab-label { font-size: 10px; letter-spacing: 0.5px; font-weight: 500; }
+
+  /* ─── PANEL: MONITOR ────────────────────────────────────────────────────── */
+  #panel-monitor { padding: 12px; gap: 12px; overflow-y: auto; }
+
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stat-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px;
+  }
+  .stat-card .stat-label { font-size: 10px; color: var(--text3); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; }
+  .stat-card .stat-value { font-size: 26px; font-weight: 700; font-family: var(--font-mono); }
+  .stat-card .stat-sub { font-size: 11px; color: var(--text2); margin-top: 4px; }
+  .stat-card.cpu .stat-value { color: var(--accent); }
+  .stat-card.ram .stat-value { color: var(--accent2); }
+  .stat-card.temp .stat-value { color: var(--orange); }
+  .stat-card.net .stat-value { font-size: 14px; color: var(--green); line-height: 1.6; }
+
+  .chart-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px;
+  }
+  .chart-card h3 { font-size: 11px; color: var(--text3); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 10px; }
+  .chart-wrap { height: 80px; position: relative; }
+
+  .disk-list { display: flex; flex-direction: column; gap: 8px; }
+  .disk-item { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
+  .disk-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
+  .disk-mount { font-size: 13px; font-weight: 600; color: var(--text); }
+  .disk-info { font-size: 11px; color: var(--text2); }
+  .progress-bar { height: 6px; background: var(--surface3); border-radius: 3px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
+  .progress-fill.low { background: var(--green); }
+  .progress-fill.mid { background: var(--yellow); }
+  .progress-fill.high { background: var(--red); }
+
+  /* ─── PANEL: TERMINAL ───────────────────────────────────────────────────── */
+  #panel-terminal { position: relative; overflow: hidden; }
+  .terminal-nav { display: flex; background: var(--surface2); overflow-x: auto; padding: 4px; gap: 4px; border-bottom: 1px solid var(--border); }
+  .term-tab {
+    padding: 6px 12px; border-radius: 6px; background: var(--surface3); cursor: pointer;
+    font-size: 12px; white-space: nowrap; color: var(--text2); display: flex; align-items: center; gap: 6px;
+  }
+  .term-tab.active { background: var(--accent); color: #000; }
+  .term-tab .close-tab { cursor: pointer; opacity: 0.5; }
+  .mobile-keys {
+    display: flex; gap: 4px; padding: 8px 6px;
+    background: var(--surface-solid); border-top: 1px solid var(--border);
+    overflow-x: auto; flex-shrink: 0;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .mobile-keys::-webkit-scrollbar { display: none; }
+  .key-btn {
+    padding: 10px 16px; background: var(--surface3); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text); font-size: 14px; cursor: pointer; flex-shrink: 0;
+    min-height: 48px; font-weight: 500; transition: all 0.2s;
+  }
+  .key-btn:active { transform: scale(0.94); background: var(--surface2); }
+  #terminal-container { flex: 1; overflow: hidden; position: relative; min-height: 0; }
+  .xterm { height: 100% !important; width: 100% !important; }
+  .xterm-viewport { overflow-y: auto !important; }
+  .xterm-screen { width: 100% !important; }
+
+  /* ─── PANEL: SCREEN ─────────────────────────────────────────────────────── */
+  #panel-screen { align-items: center; justify-content: center; background: #000; position: relative; overflow: hidden; }
+
+  /* ─── PANEL: SCREEN ─────────────────────────────────────────────────────── */
+  #panel-screen { align-items: center; justify-content: center; background: #000; position: relative; }
+  #screen-canvas {
+    max-width: 100%; max-height: 100%; object-fit: contain; display: block;
+    image-rendering: auto; cursor: crosshair; touch-action: none;
+  }
+  #screen-placeholder {
+    text-align: center; color: var(--text3);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%;
+  }
+  #screen-placeholder .ph-icon { font-size: 48px; margin-bottom: 12px; }
+  #screen-placeholder p { font-size: 14px; white-space: pre-line; text-align: center; line-height: 1.6; max-width: 300px; }
+  .screen-overlay {
+    position: absolute; top: 8px; right: 8px; display: flex; gap: 6px;
+  }
+  .screen-badge {
+    background: rgba(0,0,0,0.7); border: 1px solid var(--border);
+    border-radius: 6px; padding: 4px 8px; font-size: 11px; color: var(--text2);
+    font-family: var(--font-mono);
+  }
+  #screen-fps { color: var(--green); }
+
+  /* ─── PANEL: CHAT ───────────────────────────────────────────────────────── */
+  #panel-chat { display: flex; flex-direction: column; justify-content: flex-end; flex: 1; height: 100%; }
+  .chat-messages {
+    flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px;
+  }
+  .msg {
+    max-width: 85%; border-radius: 12px; padding: 10px 14px; font-size: 14px; line-height: 1.5;
+    word-break: break-word;
+  }
+  .msg.user { align-self: flex-end; background: var(--accent); color: #000; border-bottom-right-radius: 4px; }
+  .msg.assistant {
+    align-self: flex-start; background: var(--surface); border: 1px solid var(--border);
+    border-bottom-left-radius: 4px; color: var(--text); white-space: pre-wrap;
+  }
+  .msg.system {
+    align-self: center; background: none; border: 1px solid var(--border);
+    color: var(--text3); font-size: 12px; padding: 6px 12px; border-radius: 20px;
+  }
+  .msg.thinking {
+    align-self: flex-start; background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text3); font-size: 13px; border-bottom-left-radius: 4px;
+  }
+  .thinking-dots span {
+    animation: blink 1.4s infinite; animation-delay: calc(var(--i) * 0.2s);
+  }
+  @keyframes blink { 0%,80%,100%{opacity:0.2} 40%{opacity:1} }
+
+  /* Tool call card */
+  .tool-card {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 10px;
+    padding: 10px 12px; font-size: 12px; font-family: var(--font-mono);
+  }
+  .tool-card .tool-header { color: var(--orange); margin-bottom: 6px; font-size: 11px; }
+  .tool-card .tool-cmd { color: var(--accent); word-break: break-all; }
+  .tool-card .tool-result { color: var(--text2); margin-top: 6px; font-size: 11px; max-height: 100px; overflow-y: auto; }
+  .tool-card .tool-actions { display: flex; gap: 6px; margin-top: 8px; }
+  .btn-confirm { background: var(--green); color: #000; border: none; border-radius: 6px; padding: 5px 14px; font-size: 12px; font-weight: 700; cursor: pointer; }
+  .btn-cancel-tool { background: var(--red); color: #fff; border: none; border-radius: 6px; padding: 5px 14px; font-size: 12px; font-weight: 700; cursor: pointer; }
+
+  .chat-input-area {
+    display: flex; gap: 8px; padding: 10px 12px;
+    padding-bottom: calc(10px + var(--safe-bottom));
+    border-top: 1px solid var(--border); background: var(--surface);
+    align-items: flex-end;
+  }
+  #chat-input {
+    flex: 1; background: var(--surface2-solid); border: 1px solid var(--border);
+    border-radius: 24px; padding: 14px 20px; color: var(--text); font-size: 16px;
+    outline: none; resize: none; max-height: 120px; min-height: 48px; line-height: 1.4;
+    font-family: inherit; box-shadow: inset 0 2px 4px rgba(0,0,0,0.2); transition: border-color 0.2s;
+  }
+  #chat-input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-glow); }
+  .btn-send {
+    width: 48px; height: 48px; background: var(--accent); color: #fff;
+    border: none; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 18px; cursor: pointer; flex-shrink: 0; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .btn-send:hover { background: var(--accent-hover); transform: scale(1.05); }
+  .btn-send:active { transform: scale(0.95); }
+  .btn-send:disabled { opacity: 0.4; cursor: default; }
+
+  /* Markdown simple en mensajes del asistente */
+  .msg.assistant code {
+    background: var(--surface3); padding: 2px 5px; border-radius: 4px;
+    font-family: var(--font-mono); font-size: 12px; color: var(--accent);
+  }
+  .msg.assistant pre {
+    background: var(--surface3); border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px; overflow-x: auto; margin: 6px 0;
+  }
+  .msg.assistant pre code { background: none; padding: 0; }
+
+  /* ─── MOBILE OPTIMIZATIONS ──────────────────────────────────────────────── */
+  @media (max-width: 768px) {
+    :root { font-size: 16px; }
+    .tab-btn { min-height: 56px; }
+    .header { padding: 12px 16px; }
+    .icon-btn { width: 44px; height: 44px; font-size: 20px; }
+    .btn-send { width: 50px; height: 50px; }
+    #chat-input { font-size: 16px; padding: 12px 18px; }
+    .key-btn { min-width: 50px; padding: 12px; font-size: 14px; }
+    .login-card { padding: 24px; }
+    .btn-login { padding: 16px; font-size: 16px; }
+    .form-group input { padding: 16px; font-size: 16px; }
+  }
+  
+  /* Ocultar tab-bar al abrir teclado para maximizar espacio */
+  body.keyboard-open .tab-bar,
+  #app.keyboard-open .tab-bar {
+    display: none !important;
+  }
+</style>
+</head>
+
+<body>
+
+<!-- ─── LOGIN ──────────────────────────────────────────────────────────────── -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">
+      <span class="eagle">🦅</span>
+      <h1>MOSHICLAW</h1>
+      <p>PANEL DE CONTROL REMOTO</p>
+    </div>
+    <div class="form-group floating">
+      <input type="text" id="login-user" placeholder="agus" autocomplete="username" inputmode="text">
+      <label for="login-user">Usuario</label>
+    </div>
+    <div class="form-group floating">
+      <input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password">
+      <label for="login-pass">Contraseña</label>
+    </div>
+    <button class="btn-login" id="btn-login"><span class="btn-text">ENTRAR</span><div class="spinner"></div></button>
+    <div class="login-error" id="login-error"></div>
+    <button class="btn-subtle" onclick="forceReloadCache()" title="Limpiar caché y recargar forzadamente">↻ Limpiar Caché y Recargar</button>
+  </div>
+</div>
+
+<!-- ─── SETTINGS MODAL ─────────────────────────────────────────────────────── -->
+<div id="settings-modal">
+  <div class="settings-card">
+    <button class="btn-close-modal" id="btn-close-settings">✕</button>
+    <h2>⚙️ CONFIGURACIÓN</h2>
+    <div class="settings-group">
+      <label>Proveedor de IA</label>
+      <select id="cfg-provider">
+        <option value="gemini">Gemini (Google)</option>
+        <option value="deepseek">DeepSeek</option>
+      </select>
+    </div>
+    <div class="settings-group">
+      <label>Modelo (Opcional)</label>
+      <input type="text" id="cfg-model" placeholder="Ej: gemini-2.0-flash-lite">
+    </div>
+    <div class="settings-group">
+      <label>API Key</label>
+      <input type="password" id="cfg-apikey" placeholder="Pegá tu API key aquí">
+    </div>
+    <div class="settings-row">
+      <div>
+        <div style="font-size:13px;color:var(--text)">Auto-ejecutar comandos</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">La IA ejecuta sin pedir confirmación</div>
+      </div>
+      <button class="toggle" id="toggle-autoexec"></button>
+    </div>
+    <div style="font-size:11px;color:var(--text3);margin-top:12px;line-height:1.6">
+      🔑 <b>Gemini:</b> aistudio.google.com/apikey<br>
+      🔑 <b>DeepSeek:</b> platform.deepseek.com/api_keys
+    </div>
+    <button class="btn-save" id="btn-save-settings">GUARDAR</button>
+  </div>
+</div>
+
+<!-- ─── APP ────────────────────────────────────────────────────────────────── -->
+<div id="app">
+  <div class="header">
+    <div class="header-left">
+      <div class="status-dot" id="conn-dot"></div>
+      <span class="header-title">🦅 MOSHICLAW</span>
+    </div>
+    <div class="header-right">
+      <button class="icon-btn" id="btn-settings" title="Configuración">⚙️</button>
+      <button class="icon-btn" id="btn-logout" title="Salir">🚪</button>
+    </div>
+  </div>
+
+  <div class="content">
+    <!-- Monitor -->
+    <div class="panel active" id="panel-monitor">
+      <div class="stat-grid">
+        <div class="stat-card cpu"><div class="stat-label">CPU</div><div class="stat-value" id="m-cpu">—</div><div class="stat-sub" id="m-cpu-temp">—</div></div>
+        <div class="stat-card ram"><div class="stat-label">RAM</div><div class="stat-value" id="m-ram">—</div><div class="stat-sub" id="m-ram-detail">—</div></div>
+        <div class="stat-card temp"><div class="stat-label">RED ↓</div><div class="stat-value net" id="m-net">—</div><div class="stat-sub" id="m-iface">—</div></div>
+        <div class="stat-card"><div class="stat-label">OS</div><div class="stat-value" style="font-size:14px;color:var(--green);margin-top:4px" id="m-os">—</div><div class="stat-sub" id="m-host">—</div></div>
+      </div>
+      <div class="chart-card">
+        <h3>CPU %</h3>
+        <div class="chart-wrap"><canvas id="chart-cpu"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>RAM %</h3>
+        <div class="chart-wrap"><canvas id="chart-ram"></canvas></div>
+      </div>
+      <div class="disk-list" id="disk-list"></div>
+    </div>
+
+    <!-- Terminal -->
+    <div class="panel" id="panel-terminal">
+      <div class="terminal-nav" id="terminal-nav"></div>
+      <div id="terminal-container"></div>
+      <div class="mobile-keys">
+        <button class="key-btn" onclick="sendKey('Ctrl')">Ctrl</button>
+        <button class="key-btn" onclick="sendKey('Alt')">Alt</button>
+        <button class="key-btn" onclick="sendKey('Esc')">Esc</button>
+        <button class="key-btn" onclick="sendKey('Tab')">Tab</button>
+        <button class="key-btn" onclick="copyTerm()">Copy</button>
+        <button class="key-btn" onclick="pasteTerm()">Paste</button>
+        <button class="key-btn" onclick="newTerminal()">+</button>
+      </div>
+    </div>
+
+    <!-- Screen -->
+    <div class="panel" id="panel-screen">
+      <div id="screen-placeholder">
+        <div class="ph-icon">🖥️</div>
+        <p>Conectando al stream de pantalla...</p>
+      </div>
+      <canvas id="screen-canvas" style="display:none"></canvas>
+      <div class="screen-overlay">
+        <span class="screen-badge" id="screen-fps">— fps</span>
+        <span class="screen-badge" id="screen-res">—</span>
+      </div>
+    </div>
+
+    <!-- Browser -->
+    <div class="panel" id="panel-browser">
+        <div style="padding:10px;display:flex;gap:5px;background:var(--surface2)">
+            <input type="text" id="browser-url" style="flex:1;background:var(--surface);color:white;padding:5px;border:1px solid var(--border);border-radius:4px" placeholder="https://google.com">
+            <button onclick="navBrowser()">Ir</button>
+        </div>
+        <div id="browser-viewport" style="flex:1;background:#fff;display:flex;align-items:center;justify-content:center">
+            <img id="browser-img" style="max-width:100%;max-height:100%;object-fit:contain">
+        </div>
+    </div>
+
+    <!-- Chat -->
+    <div class="panel" id="panel-chat">
+      <div class="chat-messages" id="chat-messages">
+        <div class="msg system">Chat con moshiClaw activo. Configurá tu API key en ⚙️</div>
+      </div>
+      <div class="chat-input-area">
+        <textarea id="chat-input" rows="1" placeholder="Preguntale algo a moshiClaw..."></textarea>
+        <button class="btn-send" id="btn-send-chat">➤</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-bar">
+    <button class="tab-btn active" data-panel="monitor"><span class="tab-icon">📊</span><span class="tab-label">Monitor</span></button>
+    <button class="tab-btn" data-panel="terminal"><span class="tab-icon">💻</span><span class="tab-label">Terminal</span></button>
+    <button class="tab-btn" data-panel="screen"><span class="tab-icon">🖥️</span><span class="tab-label">Pantalla</span></button>
+    <button class="tab-btn" data-panel="browser"><span class="tab-icon">🌐</span><span class="tab-label">Web</span></button>
+    <button class="tab-btn" data-panel="chat"><span class="tab-icon">🤖</span><span class="tab-label">Chat</span></button>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════════
+//  MOSHICLAW PANEL — App Logic
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const BASE_URL = window.location.origin;
+const WS_BASE = BASE_URL.replace(/^http/, 'ws');
+
+let authToken = localStorage.getItem('oc_token') || null;
+let settings = JSON.parse(localStorage.getItem('oc_settings') || '{}');
+let eventsWS = null;
+let terminalWS = null;
+let screenWS = null;
+let xterm = null;
+let fitAddon = null;
+let cpuChart = null;
+let ramChart = null;
+let screenActive = false;
+let screenFpsCounter = 0;
+let screenStream = null;
+let lastFpsTime = Date.now();
+let autoExec = settings.autoExec || false;
+
+// ─── UTILS ────────────────────────────────────────────────────────────────────
+function qs(sel) { return document.querySelector(sel); }
+function show(el) { el.style.display = ''; }
+function hide(el) { el.style.display = 'none'; }
+
+// ─── AUTH ─────────────────────────────────────────────────────────────────────
+function forceReloadCache() {
+  if (navigator.serviceWorker) {
+    navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => r.unregister()));
+  }
+  if (window.caches) {
+    caches.keys().then(names => names.forEach(n => caches.delete(n)));
+  }
+  localStorage.clear();
+  sessionStorage.clear();
+  window.location.href = window.location.pathname + '?reload=' + Date.now();
+}
+
+async function doLogin() {
+  const user = qs('#login-user').value.trim();
+  const pass = qs('#login-pass').value;
+  const btn = qs('#btn-login');
+  
+  if (!user || !pass) {
+    qs('#login-error').textContent = 'Completá ambos campos';
+    return;
+  }
+  
+  qs('#login-error').textContent = '';
+  btn.classList.add('loading');
+  btn.disabled = true;
+
+  try {
+    const res = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: user, password: pass })
+    });
+    const data = await res.json();
+    if (res.ok && data.token) {
+      authToken = data.token;
+      localStorage.setItem('oc_token', authToken);
+      showApp();
+    } else {
+      qs('#login-error').textContent = data.error || 'Error de login';
+    }
+  } catch (e) {
+    qs('#login-error').textContent = 'No se pudo conectar al servidor';
+  } finally {
+    btn.classList.remove('loading');
+    btn.disabled = false;
+  }
+}
+
+function logout() {
+  authToken = null;
+  localStorage.removeItem('oc_token');
+  disconnectAll();
+  qs('#app').classList.remove('visible');
+  qs('#login-screen').style.display = 'flex';
+  qs('#login-pass').value = '';
+}
+
+// ─── APP INIT ─────────────────────────────────────────────────────────────────
+function showApp() {
+  qs('#login-screen').style.display = 'none';
+  qs('#app').classList.add('visible');
+  initCharts();
+  connectEvents();
+  switchPanel('monitor');
+}
+
+function init() {
+  // Bindings
+  qs('#btn-login').addEventListener('click', doLogin);
+  qs('#login-pass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+  qs('#login-user').addEventListener('keydown', e => { if (e.key === 'Enter') qs('#login-pass').focus(); });
+  qs('#btn-logout').addEventListener('click', logout);
+  qs('#btn-settings').addEventListener('click', openSettings);
+  qs('#btn-close-settings').addEventListener('click', closeSettings);
+  qs('#btn-save-settings').addEventListener('click', saveSettings);
+  
+  const btnSend = qs('#btn-send-chat');
+  const handleSend = (e) => {
+    e.preventDefault();
+    if (!btnSend.disabled) sendChatMessage();
+  };
+  btnSend.addEventListener('click', handleSend);
+  btnSend.addEventListener('mousedown', e => e.preventDefault());
+  btnSend.addEventListener('touchstart', handleSend, { passive: false });
+  
+  qs('#chat-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMessage(); }
+  });
+
+  // Auto-resize textarea
+  qs('#chat-input').addEventListener('input', function() {
+    this.style.height = 'auto';
+    this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+  });
+
+  // Global focus listeners to detect virtual keyboard opening
+  document.addEventListener('focusin', e => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
+      document.body.classList.add('keyboard-open');
+    }
+  });
+  document.addEventListener('focusout', e => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
+      document.body.classList.remove('keyboard-open');
+    }
+  });
+
+  // Tab buttons
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => switchPanel(btn.dataset.panel));
+  });
+
+  // Toggle autoexec
+  const toggleEl = qs('#toggle-autoexec');
+  if (autoExec) toggleEl.classList.add('on');
+  toggleEl.addEventListener('click', () => {
+    autoExec = !autoExec;
+    toggleEl.classList.toggle('on', autoExec);
+  });
+
+  // Restaurar settings
+  if (settings.provider) qs('#cfg-provider').value = settings.provider;
+  if (settings.model) qs('#cfg-model').value = settings.model;
+  if (settings.apiKey) qs('#cfg-apikey').value = settings.apiKey;
+
+  // Auto-login si hay token
+  if (authToken) showApp();
+
+  // SW
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  }
+}
+
+// ─── PANEL SWITCHING ──────────────────────────────────────────────────────────
+function switchPanel(name) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.panel === name));
+  qs(`#panel-${name}`).classList.add('active');
+
+  if (name === 'terminal') initTerminal();
+  if (name === 'screen') initScreen();
+  if (name !== 'screen' && screenActive) pauseScreen();
+}
+
+// ─── WEBSOCKET: EVENTS ────────────────────────────────────────────────────────
+function connectEvents() {
+  if (eventsWS) eventsWS.close();
+  const dot = qs('#conn-dot');
+
+  eventsWS = new WebSocket(`${WS_BASE}/ws/events?token=${authToken}`);
+
+  eventsWS.onopen = () => {
+    dot.classList.remove('offline');
+    console.log('Events WS connected');
+  };
+
+  eventsWS.onclose = () => {
+    dot.classList.add('offline');
+    setTimeout(connectEvents, 3000); // Reconectar
+  };
+
+  eventsWS.onerror = () => { dot.classList.add('offline'); };
+
+  eventsWS.onmessage = (e) => {
+    const msg = JSON.parse(e.data);
+    if (msg.type === 'stats') updateStats(msg.data);
+    else if (msg.type === 'chat_thinking') showThinking(msg.sessionId);
+    else if (msg.type === 'chat_response') showResponse(msg.content, msg.provider);
+    else if (msg.type === 'chat_error') showChatError(msg.error);
+    else if (msg.type === 'chat_tool') handleToolEvent(msg);
+    else if (msg.type === 'browser_status') {
+        eventsWS.send(JSON.stringify({ type: 'browser', action: 'screenshot' }));
+    }
+    else if (msg.type === 'browser_screenshot') {
+        updateBrowserScreenshot(msg.image);
+    }
+  };
+}
+
+// ─── STATS / MONITOR ─────────────────────────────────────────────────────────
+function updateStats(s) {
+  if (!s) return;
+  qs('#m-cpu').textContent = s.cpu.usage + '%';
+  qs('#m-cpu-temp').textContent = s.cpu.temp ? s.cpu.temp + '°C' : 'temp N/A';
+  qs('#m-ram').textContent = s.ram.percent + '%';
+  qs('#m-ram-detail').textContent = `${s.ram.used} / ${s.ram.total}`;
+  qs('#m-net').textContent = `↓ ${s.network.rx}\n↑ ${s.network.tx}`;
+  qs('#m-iface').textContent = s.network.iface;
+  qs('#m-os').textContent = s.os.distro;
+  qs('#m-host').textContent = s.os.hostname;
+
+  // Actualizar charts
+  if (cpuChart) {
+    cpuChart.data.labels.push('');
+    cpuChart.data.datasets[0].data.push(s.cpu.usage);
+    if (cpuChart.data.labels.length > 30) { cpuChart.data.labels.shift(); cpuChart.data.datasets[0].data.shift(); }
+    cpuChart.update('none');
+  }
+  if (ramChart) {
+    ramChart.data.labels.push('');
+    ramChart.data.datasets[0].data.push(s.ram.percent);
+    if (ramChart.data.labels.length > 30) { ramChart.data.labels.shift(); ramChart.data.datasets[0].data.shift(); }
+    ramChart.update('none');
+  }
+
+  // Discos
+  const diskEl = qs('#disk-list');
+  diskEl.innerHTML = s.disks.map(d => `
+    <div class="disk-item">
+      <div class="disk-header">
+        <span class="disk-mount">${d.mount}</span>
+        <span class="disk-info">${d.used} / ${d.total} · <b>${d.percent}%</b></span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill ${d.percent<60?'low':d.percent<85?'mid':'high'}" style="width:${d.percent}%"></div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ─── CHARTS ──────────────────────────────────────────────────────────────────
+function initCharts() {
+  const chartOpts = (color) => ({
+    type: 'line',
+    data: { labels: Array(30).fill(''), datasets: [{ data: Array(30).fill(0), borderColor: color, backgroundColor: color + '22', fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { display: false },
+        y: { display: false, min: 0, max: 100 }
+      }
+    }
+  });
+  cpuChart = new Chart(qs('#chart-cpu'), chartOpts('#00d4ff'));
+  ramChart = new Chart(qs('#chart-ram'), chartOpts('#7c3aed'));
+}
+
+// ─── TERMINAL ─────────────────────────────────────────────────────────────────
+let terminals = {};
+let activeTermId = null;
+
+function newTerminal() {
+  const id = 'term_' + Date.now();
+  const div = document.createElement('div');
+  div.id = 'term-view-' + id;
+  div.style.display = 'none';
+  div.style.height = '100%';
+  qs('#terminal-container').appendChild(div);
+
+  const x = new Terminal({
+    theme: { background: '#0d0d0d', foreground: '#e2e8f0', cursor: '#00d4ff' },
+    fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+    fontSize: 13,
+    cursorBlink: true
+  });
+  const fit = new FitAddon.FitAddon();
+  x.loadAddon(fit);
+  x.open(div);
+  fit.fit();
+
+  const ws = new WebSocket(`${WS_BASE}/ws/terminal?token=${authToken}`);
+  ws.onopen = () => ws.send(JSON.stringify({ type: 'init', cols: x.cols, rows: x.rows }));
+  ws.onmessage = (e) => x.write(e.data);
+  ws.onclose = () => x.write('\r\n\x1b[33m[Conexión perdida]\x1b[0m\r\n');
+
+  x.onData(d => { if(ws.readyState === WebSocket.OPEN) ws.send(d); });
+  
+  terminals[id] = { x, fit, ws, div };
+
+  const tab = document.createElement('div');
+  tab.className = 'term-tab';
+  tab.textContent = 'Terminal ' + (Object.keys(terminals).length);
+  tab.onclick = () => switchTerminal(id);
+  qs('#terminal-nav').appendChild(tab);
+  
+  switchTerminal(id);
+}
+
+function switchTerminal(id) {
+  activeTermId = id;
+  Object.keys(terminals).forEach(k => {
+    terminals[k].div.style.display = (k === id) ? 'block' : 'none';
+    terminals[k].fit.fit();
+  });
+  document.querySelectorAll('.term-tab').forEach((t, i) => {
+    t.classList.toggle('active', Object.keys(terminals)[i] === id);
+  });
+}
+
+function sendKey(k) {
+  if (!activeTermId) return;
+  const t = terminals[activeTermId].x;
+  if (k === 'Ctrl') t.write('\x03'); // Simplificado
+  else if (k === 'Alt') t.write('\x1b');
+  else if (k === 'Esc') t.write('\x1b');
+  else if (k === 'Tab') t.write('\t');
+}
+
+async function copyTerm() {
+  if (!activeTermId) return;
+  const text = terminals[activeTermId].x.getSelection();
+  if (text) await navigator.clipboard.writeText(text);
+}
+
+async function pasteTerm() {
+  const text = await navigator.clipboard.readText();
+  if (activeTermId && text) terminals[activeTermId].ws.send(text);
+}
+
+// Inicialización de tabs al abrir panel terminal
+let terminalInitialized = false;
+function initTerminal() {
+  if (terminalInitialized) return;
+  terminalInitialized = true;
+  newTerminal();
+}
+
+// ─── SCREEN SHARE (getDisplayMedia) ──────────────────────────────────────────
+// ─── SCREEN STREAM ────────────────────────────────────────────────────────────
+function initScreen() {
+  if (screenActive) return;
+  screenActive = true;
+  connectScreen();
+}
+
+function pauseScreen() {
+  screenActive = false;
+  if (screenWS) { screenWS.close(); screenWS = null; }
+  window.removeEventListener('keydown', handleScreenKeydown);
+}
+
+function connectScreen() {
+  if (!screenActive) return;
+  if (screenWS) screenWS.close();
+
+  // Escuchar inputs en ventana completa (si panel está activo)
+  window.addEventListener('keydown', handleScreenKeydown);
+
+  screenWS = new WebSocket(`${WS_BASE}/ws/screen?token=${authToken}`);
+  const canvas = qs('#screen-canvas');
+  const ctx = canvas.getContext('2d');
+  const placeholder = qs('#screen-placeholder');
+
+  screenWS.onopen = () => {
+    show(canvas); hide(placeholder);
+    screenFpsCounter = 0; lastFpsTime = Date.now();
+  };
+
+  screenWS.onmessage = (e) => {
+    const msg = JSON.parse(e.data);
+    if (msg.type === 'frame') {
+      const img = new Image();
+      img.onload = () => {
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+        qs('#screen-res').textContent = `${img.width}×${img.height}`;
+      };
+      img.src = 'data:image/jpeg;base64,' + msg.data;
+
+      screenFpsCounter++;
+      const now = Date.now();
+      if (now - lastFpsTime >= 1000) {
+        qs('#screen-fps').textContent = screenFpsCounter + ' fps';
+        screenFpsCounter = 0; lastFpsTime = now;
+      }
+    } else if (msg.type === 'error') {
+      hide(canvas); show(placeholder);
+      const isLock = msg.message.includes('bloqueó') || msg.message.includes('🔒');
+      placeholder.querySelector('.ph-icon').textContent = isLock ? '🔒' : '❌';
+      placeholder.querySelector('p').textContent = msg.message;
+    } else if (msg.type === 'info') {
+      placeholder.querySelector('.ph-icon').textContent = '🖥️';
+      placeholder.querySelector('p').textContent = msg.message;
+    }
+  };
+
+  screenWS.onclose = () => {
+    hide(canvas); show(placeholder);
+    placeholder.querySelector('.ph-icon').textContent = '🖥️';
+    placeholder.querySelector('p').textContent = 'Reconectando...';
+    if (screenActive) setTimeout(connectScreen, 3000);
+  };
+
+  setupCanvasInput(canvas);
+}
+
+// ─── Control Remoto ──────────
+
+function setupCanvasInput(canvas) {
+  // Evitar que se asocien múltiples listeners
+  if (canvas._hasInputSetup) return;
+  canvas._hasInputSetup = true;
+
+  // Calculador de offset a tamaño real de pantalla
+  const getCoords = (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * canvas.width;
+    const y = ((e.clientY - rect.top) / rect.height) * canvas.height;
+    return { x, y };
+  };
+
+  let dragging = false;
+
+  canvas.addEventListener('mousedown', e => {
+    if (!screenWS || screenWS.readyState !== WebSocket.OPEN) return;
+    dragging = true;
+    const { x, y } = getCoords(e);
+    // Mousemove previo al click para ubicarnos, y luego click
+    screenWS.send(JSON.stringify({ type: 'mousemove', x, y }));
+    screenWS.send(JSON.stringify({ type: 'mousedown', button: processButton(e.button) }));
+  });
+
+  canvas.addEventListener('mousemove', e => {
+    if (!dragging || !screenWS || screenWS.readyState !== WebSocket.OPEN) return;
+    const { x, y } = getCoords(e);
+    screenWS.send(JSON.stringify({ type: 'mousemove', x, y }));
+  });
+
+  canvas.addEventListener('mouseup', e => {
+    if (!screenWS || screenWS.readyState !== WebSocket.OPEN) return;
+    dragging = false;
+    const { x, y } = getCoords(e);
+    screenWS.send(JSON.stringify({ type: 'mousemove', x, y }));
+    screenWS.send(JSON.stringify({ type: 'mouseup', button: processButton(e.button) }));
+  });
+
+  canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+  // Soporte básico para Touch (Mobile)
+  canvas.addEventListener('touchstart', e => {
+    e.preventDefault();
+    if (!screenWS || screenWS.readyState !== WebSocket.OPEN) return;
+    dragging = true;
+    const touch = e.touches[0];
+    const { x, y } = getCoords(touch);
+    screenWS.send(JSON.stringify({ type: 'mousemove', x, y }));
+    screenWS.send(JSON.stringify({ type: 'mousedown', button: 1 }));
+  }, { passive: false });
+
+  canvas.addEventListener('touchmove', e => {
+    e.preventDefault();
+    if (!dragging || !screenWS || screenWS.readyState !== WebSocket.OPEN) return;
+    const touch = e.touches[0];
+    const { x, y } = getCoords(touch);
+    screenWS.send(JSON.stringify({ type: 'mousemove', x, y }));
+  }, { passive: false });
+
+  canvas.addEventListener('touchend', e => {
+    e.preventDefault();
+    if (!screenWS || screenWS.readyState !== WebSocket.OPEN) return;
+    dragging = false;
+    screenWS.send(JSON.stringify({ type: 'mouseup', button: 1 }));
+  }, { passive: false });
+}
+
+function processButton(b) {
+  if (b === 0) return 1; // Left
+  if (b === 1) return 2; // Middle
+  if (b === 2) return 3; // Right
+  return 1;
+}
+
+function handleScreenKeydown(e) {
+  if (!screenActive || !screenWS || screenWS.readyState !== WebSocket.OPEN) return;
+  // No capturar teclas si estás escribiendo en input (ej: navegador URL)
+  if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') return;
+
+  e.preventDefault();
+  screenWS.send(JSON.stringify({ type: 'keydown', key: e.key }));
+}
+
+// ─── BROWSER ──────────────────────────────────────────────────────────────────
+function navBrowser() {
+    let url = qs('#browser-url').value;
+    if (!url.startsWith('http')) url = 'https://' + url;
+    eventsWS.send(JSON.stringify({ type: 'browser', action: 'navigate', url }));
+}
+
+function updateBrowserScreenshot(imgB64) {
+    qs('#browser-img').src = 'data:image/jpeg;base64,' + imgB64;
+}
+
+
+let chatSessionId = 'session_' + Date.now();
+let pendingThinkingEl = null;
+let pendingToolCards = {};     // confirmId → { el, toolName, args }
+let pendingToolData = {};      // confirmId → { toolName, args } para confirmación segura
+
+function addMessage(content, role) {
+  const el = document.createElement('div');
+  el.className = `msg ${role}`;
+  if (role === 'assistant') {
+    el.innerHTML = renderMarkdown(content);
+  } else {
+    el.textContent = content;
+  }
+  qs('#chat-messages').appendChild(el);
+  el.scrollIntoView({ behavior: 'smooth' });
+  return el;
+}
+
+function showThinking() {
+  removeThinking();
+  const el = document.createElement('div');
+  el.className = 'msg thinking';
+  el.innerHTML = `moshiClaw está pensando <span class="thinking-dots"><span style="--i:0">.</span><span style="--i:1">.</span><span style="--i:2">.</span></span>`;
+  qs('#chat-messages').appendChild(el);
+  el.scrollIntoView({ behavior: 'smooth' });
+  pendingThinkingEl = el;
+}
+
+function removeThinking() {
+  if (pendingThinkingEl) { pendingThinkingEl.remove(); pendingThinkingEl = null; }
+}
+
+function showResponse(text, provider) {
+  removeThinking();
+  const el = addMessage(text, 'assistant');
+  qs('#btn-send-chat').disabled = false;
+}
+
+function showChatError(err) {
+  removeThinking();
+  addMessage(`⚠️ ${err}`, 'system');
+  qs('#btn-send-chat').disabled = false;
+}
+
+function handleToolEvent(event) {
+  if (event.type === 'executing') {
+    const card = document.createElement('div');
+    card.className = 'tool-card';
+    card.innerHTML = `
+      <div class="tool-header">⚡ Ejecutando: ${event.name}</div>
+      <div class="tool-cmd">$ ${event.args.command || JSON.stringify(event.args)}</div>
+      <div class="tool-result" id="tool-result-${event.confirmId || ''}">Ejecutando...</div>
+    `;
+    qs('#chat-messages').appendChild(card);
+    card.scrollIntoView({ behavior: 'smooth' });
+  } else if (event.type === 'result') {
+    const resultEl = document.querySelector(`#tool-result-${event.confirmId || ''}`);
+    if (resultEl) resultEl.textContent = event.result;
+  } else if (event.type === 'needs_confirmation') {
+    // Guardar args de forma segura en memoria, no en HTML
+    pendingToolData[event.confirmId] = { toolName: event.name, args: event.args };
+
+    const card = document.createElement('div');
+    card.className = 'tool-card';
+    card.dataset.confirmId = event.confirmId;
+    card.innerHTML = `
+      <div class="tool-header">🤖 moshiClaw quiere ejecutar:</div>
+      <div class="tool-cmd">$ ${escapeHtml(event.args.command || JSON.stringify(event.args))}</div>
+      <div class="tool-actions">
+        <button class="btn-confirm btn-confirm-action">✓ Ejecutar</button>
+        <button class="btn-cancel-tool btn-cancel-action">✕ Cancelar</button>
+      </div>
+    `;
+    card.querySelector('.btn-confirm-action').addEventListener('click', () => {
+      confirmTool(event.confirmId);
+    });
+    card.querySelector('.btn-cancel-action').addEventListener('click', () => {
+      cancelTool(event.confirmId);
+    });
+    qs('#chat-messages').appendChild(card);
+    card.scrollIntoView({ behavior: 'smooth' });
+    pendingToolCards[event.confirmId] = card;
+  }
+}
+
+function confirmTool(confirmId) {
+  const data = pendingToolData[confirmId];
+  if (!data) return;
+  if (eventsWS && eventsWS.readyState === WebSocket.OPEN) {
+    eventsWS.send(JSON.stringify({ type: 'confirm_tool', confirmId, toolName: data.toolName, args: data.args }));
+    if (pendingToolCards[confirmId]) {
+      pendingToolCards[confirmId].querySelector('.tool-actions').innerHTML = '<span style="color:var(--green);font-size:12px">✓ Ejecutando...</span>';
+    }
+    delete pendingToolData[confirmId];
+  }
+}
+
+function cancelTool(confirmId) {
+  if (eventsWS && eventsWS.readyState === WebSocket.OPEN) {
+    eventsWS.send(JSON.stringify({ type: 'cancel_tool', confirmId }));
+    if (pendingToolCards[confirmId]) {
+      pendingToolCards[confirmId].querySelector('.tool-actions').innerHTML = '<span style="color:var(--red);font-size:12px">✕ Cancelado</span>';
+    }
+    delete pendingToolData[confirmId];
+  }
+}
+
+function escapeHtml(text) {
+  return String(text).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function sendChatMessage() {
+  const input = qs('#chat-input');
+  const msg = input.value.trim();
+  if (!msg) return;
+
+  if (!settings.apiKey) {
+    addMessage('Configurá tu API key en ⚙️ primero.', 'system');
+    return;
+  }
+
+  addMessage(msg, 'user');
+  input.value = '';
+  input.style.height = 'auto';
+  qs('#btn-send-chat').disabled = true;
+
+  if (eventsWS && eventsWS.readyState === WebSocket.OPEN) {
+    eventsWS.send(JSON.stringify({
+      type: 'chat',
+      message: msg,
+      provider: settings.provider || 'gemini',
+      model: settings.model,
+      apiKey: settings.apiKey,
+      sessionId: chatSessionId,
+      autoExecute: autoExec
+    }));
+  } else {
+    addMessage('Sin conexión al servidor.', 'system');
+    qs('#btn-send-chat').disabled = false;
+  }
+}
+
+// ─── SETTINGS ─────────────────────────────────────────────────────────────────
+function openSettings() {
+  qs('#cfg-provider').value = settings.provider || 'gemini';
+  qs('#cfg-model').value = settings.model || '';
+  qs('#cfg-apikey').value = settings.apiKey || '';
+  const toggle = qs('#toggle-autoexec');
+  toggle.classList.toggle('on', !!settings.autoExec);
+  qs('#settings-modal').classList.add('open');
+}
+
+function closeSettings() {
+  qs('#settings-modal').classList.remove('open');
+}
+
+function saveSettings() {
+  settings.provider = qs('#cfg-provider').value;
+  settings.model = qs('#cfg-model').value.trim();
+  settings.apiKey = qs('#cfg-apikey').value.trim();
+  settings.autoExec = qs('#toggle-autoexec').classList.contains('on');
+  autoExec = settings.autoExec;
+  localStorage.setItem('oc_settings', JSON.stringify(settings));
+  closeSettings();
+  addMessage('✓ Configuración guardada.', 'system');
+}
+
+// ─── MARKDOWN SIMPLE ──────────────────────────────────────────────────────────
+function renderMarkdown(text) {
+  return text
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
+    .replace(/\*([^*]+)\*/g, '<i>$1</i>')
+    .replace(/\n/g, '<br>');
+}
+
+// ─── DISCONNECT ───────────────────────────────────────────────────────────────
+function disconnectAll() {
+  [eventsWS, terminalWS, screenWS].forEach(ws => { if (ws) ws.close(); });
+  eventsWS = terminalWS = screenWS = null;
+}
+
+// ─── VISUAL VIEWPORT (keyboard avoidance) ─────────────────────────────────────
+// Cuando el teclado virtual se abre, visualViewport.height se reduce al área
+// visible sobre el teclado. Ajustamos #app a ese tamaño para que todo el
+// layout de Flexbox (header → content → tab-bar) se recalcule dentro del
+// espacio visible. El tab-bar queda oculto por CSS (.keyboard-open) y el
+// input del chat queda justo arriba del teclado, estilo WhatsApp.
+function setupViewportFix() {
+  const app = qs('#app');
+  if (!window.visualViewport) return;
+
+  let rafId = null;
+  function onViewportChange() {
+    if (rafId) cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(() => {
+      const vv = window.visualViewport;
+      const offsetTop = vv.offsetTop || 0;
+      const kbHeight = Math.max(0, window.innerHeight - vv.height - offsetTop);
+      const isKeyboardOpen = kbHeight > 50;
+
+      // Compensar scroll del viewport en iOS → header queda estático
+      app.style.top = offsetTop + 'px';
+      // Ajustar el alto del app al viewport VISIBLE (sobre el teclado).
+      // Esto es clave: vv.height es solo la parte visible, no incluye
+      // el espacio detrás del teclado virtual.
+      app.style.height = vv.height + 'px';
+
+      app.classList.toggle('keyboard-open', isKeyboardOpen);
+
+      // Re-ajustar el terminal activo si el viewport cambia (teclado abr/cierra)
+      if (activeTermId && terminals[activeTermId]) {
+        try { terminals[activeTermId].fit.fit(); } catch {}
+      }
+    });
+  }
+
+  window.visualViewport.addEventListener('resize', onViewportChange);
+  window.visualViewport.addEventListener('scroll', onViewportChange);
+  onViewportChange();
+}
+
+// ─── BOOT ─────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => { init(); setupViewportFix(); });
+</script>
+</body>
+</html>

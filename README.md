@@ -13,8 +13,9 @@ Panel de control remoto y avanzado para tu PC Ubuntu. Accede desde el navegador 
 - **💻 Terminal Integrada** — Shell completo en el navegador (xterm.js + node-pty) con capacidades multitab y soporte de teclado móvil ampliado.
 - **🖥️ Escritorio Remoto** — Streaming de pantalla en tiempo real (X11 vía ffmpeg) con control de mouse y teclado.
 - **🤖 Asistente IA Avanzado** — Chat multi-modelo (Gemini 2.0, DeepSeek R1) capaz de ejecutar comandos, leer archivos, navegar por la web y generar imágenes de forma autónoma.
+- **🛡️ Claude Code & Multi-Agentes** — Integración experimental de Claude Code que permite gestionar múltiples agentes simultáneos en diferentes directorios con notificaciones de estado.
 - **🌗 Temas Dinámicos** — Soporte nativo para modo Claro y Oscuro con una interfaz premium inspirada en glassmorphism.
-- **🔔 Notificaciones Push** — Alertas instantáneas si la CPU o RAM superan límites críticos.
+- **🔔 Notificaciones Push** — Alertas instantáneas si la CPU o RAM superan límites críticos o si un agente IA termina una tarea.
 
 ---
 

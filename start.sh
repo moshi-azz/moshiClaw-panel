@@ -52,6 +52,63 @@ echo "   Sesión:  ${XDG_SESSION_TYPE}"
 [ "${XDG_SESSION_TYPE}" = "wayland" ] && echo "   ⚠️  Wayland detectado — stream de pantalla usará capturas (~5fps)"
 echo ""
 
+# ─── N8N (Automatización de flujos) ─────────────────────────────────────────
+N8N_PORT=${N8N_PORT:-5678}
+N8N_PID_FILE="/tmp/moshiclaw_n8n.pid"
+
+start_n8n() {
+  if [ -f "$N8N_PID_FILE" ] && kill -0 "$(cat $N8N_PID_FILE)" 2>/dev/null; then
+    echo "✅ n8n ya está corriendo (PID $(cat $N8N_PID_FILE))"
+  else
+    echo "⚙️  Iniciando n8n en puerto $N8N_PORT..."
+    N8N_PORT=$N8N_PORT \
+    N8N_BASIC_AUTH_ACTIVE=false \
+    N8N_SECURE_COOKIE=false \
+    WEBHOOK_URL=http://localhost:$N8N_PORT/ \
+    npx n8n start > /tmp/moshiclaw_n8n.log 2>&1 &
+    echo $! > "$N8N_PID_FILE"
+    echo "✅ n8n iniciado (PID $!) — http://localhost:$N8N_PORT"
+    echo "   Logs: tail -f /tmp/moshiclaw_n8n.log"
+  fi
+}
+
+stop_n8n() {
+  if [ -f "$N8N_PID_FILE" ]; then
+    kill "$(cat $N8N_PID_FILE)" 2>/dev/null && echo "🛑 n8n detenido"
+    rm -f "$N8N_PID_FILE"
+  fi
+}
+
+stop_ollama() {
+  : # Ollama es un servicio del sistema, no lo detenemos al cerrar el panel
+}
+
+start_ollama() {
+  if curl -sf http://localhost:11434/api/tags > /dev/null 2>&1; then
+    echo "✅ Ollama ya está corriendo"
+  elif sudo systemctl is-enabled ollama > /dev/null 2>&1; then
+    echo "🤖 Iniciando Ollama (GPU ROCm)..."
+    sudo systemctl start ollama
+    # Esperar hasta 15s a que levante
+    for i in $(seq 1 15); do
+      sleep 1
+      if curl -sf http://localhost:11434/api/tags > /dev/null 2>&1; then
+        echo "✅ Ollama listo en http://localhost:11434"
+        break
+      fi
+      [ $i -eq 15 ] && echo "⚠️  Ollama tardó en responder — continuando igual"
+    done
+  else
+    echo "⚠️  Servicio ollama no encontrado — saltando"
+  fi
+}
+
+trap stop_n8n EXIT INT TERM
+start_ollama
+echo ""
+start_n8n
+echo ""
+
 while true; do
   echo "🚀 Iniciando servidor Node.js..."
   node server.js

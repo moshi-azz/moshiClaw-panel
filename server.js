@@ -15,11 +15,14 @@ const monitoring = require('./modules/monitoring');
 const terminal = require('./modules/terminal');
 const screen = require('./modules/screen');
 const ai = require('./modules/ai');
-const browser = require('./modules/browser'); // Nuevo módulo
-const files = require('./modules/files'); // Modulo de archivos
-const webcam = require('./modules/webcam'); // Phase 2: Webcam
-const scripts = require('./modules/scripts'); // Phase 4: Scripts
-const statsHistory = require('./modules/stats_history'); // Phase 4: History
+const browser = require('./modules/browser');
+const files = require('./modules/files');
+const webcam = require('./modules/webcam');
+const scripts = require('./modules/scripts');
+const statsHistory = require('./modules/stats_history');
+const whatsapp = require('./modules/whatsapp');
+const messenger = require('./modules/messenger');
+const autoresponder = require('./modules/autoresponder');
 
 
 const PORT = process.env.PORT || 3000;
@@ -136,10 +139,19 @@ wsEvents.on('connection', (ws, req, user) => {
         if (data.action === 'navigate') {
             const res = await browser.navigate(data.url);
             ws.send(JSON.stringify({ type: 'browser_status', data: res }));
+            // Auto-screenshot tras navegar
+            const b64 = await browser.screenshot();
+            if (b64) ws.send(JSON.stringify({ type: 'browser_screenshot', image: b64 }));
         }
         if (data.action === 'screenshot') {
             const b64 = await browser.screenshot();
             ws.send(JSON.stringify({ type: 'browser_screenshot', image: b64 }));
+        }
+        if (data.action === 'scroll') {
+            const delta = data.direction === 'up' ? -600 : 600;
+            await browser.scroll(delta);
+            const b64 = await browser.screenshot();
+            if (b64) ws.send(JSON.stringify({ type: 'browser_screenshot', image: b64 }));
         }
     }
   });
@@ -162,7 +174,7 @@ async function handleChatMessage(ws, data, user) {
   const { message, provider, model, apiKey, sessionId, autoExecute } = data;
   const sId = sessionId || user.user;
 
-  if (!message || !provider || !apiKey) {
+  if (!message || !provider || (!apiKey && provider !== 'ollama')) {
     ws.send(JSON.stringify({ type: 'chat_error', error: 'Faltan parámetros: message, provider, apiKey' }));
     return;
   }
@@ -189,7 +201,9 @@ async function handleChatMessage(ws, data, user) {
           if (toolEvent.type === 'browser_screenshot') {
             ws.send(JSON.stringify({ type: 'browser_screenshot', image: toolEvent.image }));
           } else {
-            ws.send(JSON.stringify({ type: 'chat_tool', ...toolEvent, sessionId: sId }));
+            // IMPORTANTE: extraer 'type' de toolEvent para que no sobreescriba 'chat_tool'
+            const { type: toolType, ...toolData } = toolEvent;
+            ws.send(JSON.stringify({ type: 'chat_tool', toolType, ...toolData, sessionId: sId }));
           }
         } catch {}
       }
@@ -197,10 +211,14 @@ async function handleChatMessage(ws, data, user) {
 
     // Solo enviar respuesta si no fue cancelada
     if (activeAiRequests.has(sId)) {
+      // Ollama devuelve { content, thinking }; otros providers devuelven string
+      const content = (response && typeof response === 'object') ? response.content : (response || '');
+      const thinking = (response && typeof response === 'object') ? (response.thinking || '') : '';
       ws.send(JSON.stringify({
         type: 'chat_response',
         sessionId: sId,
-        content: response,
+        content,
+        thinking,
         provider
       }));
       activeAiRequests.delete(sId);
@@ -257,18 +275,36 @@ app.get('/api/processes', authMiddleware, async (req, res) => {
   res.json({ processes: procs });
 });
 
-// Matar proceso por PID
 app.post('/api/processes/kill', authMiddleware, (req, res) => {
   const { pid } = req.body;
   if (!pid || isNaN(parseInt(pid))) {
     return res.status(400).json({ error: 'PID inválido' });
   }
-  try {
-    process.kill(parseInt(pid), 'SIGTERM');
-    res.json({ success: true, message: `Proceso ${pid} terminado.` });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
+  const { exec } = require('child_process');
+  const targetPid = parseInt(pid);
+
+  // Estrategia mejorada: matar proceso + todo su grupo de procesos (árbol de hijos)
+  // 1. Obtener PGID del proceso
+  exec(`ps -o pgid= -p ${targetPid} 2>/dev/null`, (pgidErr, pgidOut) => {
+    const pgid = parseInt(pgidOut.trim()) || targetPid;
+
+    // 2. Enviar SIGTERM al grupo completo (mata hijos también)
+    const killGroupCmd = pgid > 1
+      ? `kill -TERM -${pgid} 2>/dev/null || kill -TERM ${targetPid}`
+      : `kill -TERM ${targetPid}`;
+
+    exec(killGroupCmd, (err) => {
+      if (err) {
+        // 3. Si TERM falla, forzar con SIGKILL
+        exec(`kill -KILL ${targetPid} 2>/dev/null || sudo kill -KILL ${targetPid}`, (err2) => {
+          if (err2) return res.status(500).json({ success: false, error: err2.message });
+          res.json({ success: true, message: `Proceso ${targetPid} terminado (KILL).` });
+        });
+        return;
+      }
+      res.json({ success: true, message: `Proceso ${targetPid} y su grupo terminados.` });
+    });
+  });
 });
 
 // ─── SCRIPTS (Phase 4) ────────────────────────────────────────────────────────
@@ -296,6 +332,43 @@ app.post('/api/scripts/add', authMiddleware, (req, res) => {
 app.delete('/api/scripts/:id', authMiddleware, (req, res) => {
   scripts.deleteScript(req.params.id);
   res.json({ success: true });
+});
+// ─── SISTEMA (Reboot/Shutdown/Cleanup) ─────────────────────────────────────────
+app.post('/api/system/:action', authMiddleware, (req, res) => {
+  const { action } = req.params;
+  const { exec } = require('child_process');
+  
+  let cmd = '';
+  let msg = '';
+
+  if (action === 'reboot') {
+    cmd = 'sudo reboot';
+    msg = 'Reiniciando el sistema...';
+  } else if (action === 'shutdown') {
+    cmd = 'sudo shutdown -h now';
+    msg = 'Apagando el sistema...';
+  } else if (action === 'cleanup') {
+    // Limpieza agresiva de temporales y logs de apt
+    cmd = 'sudo rm -rf /tmp/* && sudo apt-get clean';
+    msg = 'Limpieza de temporales completada.';
+  } else {
+    return res.status(400).json({ error: 'Acción no reconocida' });
+  }
+
+  console.log(`⚠️  SYSTEM ACTION: ${action} by authorized user`);
+  
+  exec(cmd, (err, stdout, stderr) => {
+    if (action === 'cleanup') {
+       if (err) {
+           return res.status(500).json({ success: false, error: err.message });
+       }
+       return res.json({ success: true, message: msg });
+    }
+  });
+
+  if (action !== 'cleanup') {
+    res.json({ success: true, message: msg });
+  }
 });
 
 // Captura de pantalla individual
@@ -386,6 +459,185 @@ app.delete('/api/files/delete', authMiddleware, async (req, res) => {
     } catch(err) {
          res.status(500).json({ success: false, error: err.message });
     }
+});
+
+// ─── MENSAJERÍA AUTO-RESPONDER ────────────────────────────────────────────────
+
+// Función unificada de envío usada por autoresponder
+async function sendReply(msg, text) {
+  if (msg.platform === 'whatsapp') {
+    await whatsapp.sendMessage(msg.from, text);
+  } else if (msg.platform === 'messenger') {
+    await messenger.sendMessage(msg.conversationUrl || msg.from, text);
+  }
+}
+
+// Conectar eventos de WhatsApp y Messenger al autoresponder
+whatsapp.emitter.on('message', async (msg) => {
+  await autoresponder.processIncomingMessage(msg, sendReply);
+});
+messenger.emitter.on('message', async (msg) => {
+  await autoresponder.processIncomingMessage(msg, sendReply);
+});
+
+// Emitir eventos de autoresponder a todos los WS conectados
+autoresponder.emitter.on('pending_response', (pending) => {
+  wsEvents.clients.forEach(ws => {
+    if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'ar_pending', data: pending }));
+  });
+});
+autoresponder.emitter.on('message_handled', (entry) => {
+  wsEvents.clients.forEach(ws => {
+    if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'ar_handled', data: entry }));
+  });
+});
+autoresponder.emitter.on('mode_changed', (mode) => {
+  wsEvents.clients.forEach(ws => {
+    if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'ar_mode', mode }));
+  });
+});
+
+// Estado general de mensajería
+app.get('/api/messaging/status', authMiddleware, (req, res) => {
+  res.json({
+    whatsapp: whatsapp.getStatus(),
+    messenger: messenger.getStatus(),
+    autoresponder: autoresponder.getConfig(),
+  });
+});
+
+// ─── MUTEX: evitar conflicto WA ↔ Messenger (ambos usan Chromium) ─────────────
+let chromiumLock = null; // 'whatsapp' | 'messenger' | null
+
+// Auto-liberar el mutex si el proceso termina inesperadamente
+whatsapp.emitter.on('status', (s) => {
+  if ((s === 'disconnected' || s === 'error') && chromiumLock === 'whatsapp') chromiumLock = null;
+});
+messenger.emitter.on('status', (ev) => {
+  const s = typeof ev === 'string' ? ev : ev?.status;
+  if ((s === 'disconnected' || s === 'error') && chromiumLock === 'messenger') chromiumLock = null;
+});
+
+// WhatsApp: iniciar (genera QR o código de teléfono)
+app.post('/api/messaging/whatsapp/start', authMiddleware, async (req, res) => {
+  if (chromiumLock === 'messenger') {
+    return res.status(409).json({
+      ok: false,
+      error: '⚠️ Messenger está activo. Desconectá Messenger primero antes de conectar WhatsApp.'
+    });
+  }
+  const phone = (req.body && req.body.phone) ? String(req.body.phone).replace(/\D/g, '') : null;
+  chromiumLock = 'whatsapp';
+  const result = await whatsapp.start(null, phone || null);
+  if (!result.ok) chromiumLock = null;
+  res.json(result);
+});
+
+// WhatsApp: estado actual (QR o pairing code)
+app.get('/api/messaging/whatsapp/qr', authMiddleware, (req, res) => {
+  const { qr, status, pairingCode } = whatsapp.getStatus();
+  if (pairingCode) res.json({ pairingCode, status });
+  else if (qr) res.json({ qr, status });
+  else res.json({ status, msg: 'Sin QR disponible (ya conectado o no iniciado)' });
+});
+
+// WhatsApp: detener
+app.post('/api/messaging/whatsapp/stop', authMiddleware, async (req, res) => {
+  await whatsapp.stop();
+  if (chromiumLock === 'whatsapp') chromiumLock = null;
+  res.json({ ok: true });
+});
+
+// Messenger: iniciar (email + password)
+app.post('/api/messaging/messenger/start', authMiddleware, async (req, res) => {
+  if (chromiumLock === 'whatsapp') {
+    return res.status(409).json({
+      ok: false,
+      error: '⚠️ WhatsApp está activo. Desconectá WhatsApp primero antes de conectar Messenger.'
+    });
+  }
+  const { email, password } = req.body;
+  if (!email || !password) return res.status(400).json({ error: 'Faltan email y password' });
+  chromiumLock = 'messenger';
+  const result = await messenger.start(email, password);
+  if (!result.ok) chromiumLock = null;
+  res.json(result);
+});
+
+// Messenger: reintentar después de 2FA manual
+app.post('/api/messaging/messenger/retry2fa', authMiddleware, async (req, res) => {
+  const result = await messenger.retryAfter2FA();
+  res.json(result);
+});
+
+// Messenger: detener
+app.post('/api/messaging/messenger/stop', authMiddleware, async (req, res) => {
+  await messenger.stop();
+  if (chromiumLock === 'messenger') chromiumLock = null;
+  res.json({ ok: true });
+});
+
+// Enviar mensaje manual
+app.post('/api/messaging/send', authMiddleware, async (req, res) => {
+  const { platform, to, text } = req.body;
+  try {
+    if (platform === 'whatsapp') await whatsapp.sendMessage(to, text);
+    else if (platform === 'messenger') await messenger.sendMessage(to, text);
+    else return res.status(400).json({ error: 'Plataforma inválida' });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// Pendientes (modo SEMI)
+app.get('/api/messaging/pending', authMiddleware, (req, res) => {
+  res.json({ pending: autoresponder.getPending() });
+});
+
+// Aprobar respuesta pendiente
+app.post('/api/messaging/approve/:pendingId', authMiddleware, async (req, res) => {
+  const result = await autoresponder.approveResponse(req.params.pendingId, sendReply);
+  res.json(result);
+});
+
+// Rechazar respuesta pendiente
+app.post('/api/messaging/reject/:pendingId', authMiddleware, (req, res) => {
+  res.json(autoresponder.rejectResponse(req.params.pendingId));
+});
+
+// Historial
+app.get('/api/messaging/history', authMiddleware, (req, res) => {
+  const limit = parseInt(req.query.limit) || 50;
+  res.json({ history: autoresponder.getHistory(limit) });
+});
+
+// Modo global
+app.post('/api/messaging/mode', authMiddleware, (req, res) => {
+  const { mode } = req.body;
+  res.json(autoresponder.setMode(mode));
+});
+
+// Modo por plataforma
+app.post('/api/messaging/platform-mode', authMiddleware, (req, res) => {
+  const { platform, mode } = req.body;
+  res.json(autoresponder.setPlatformMode(platform, mode));
+});
+
+// Bloquear / desbloquear contacto
+app.post('/api/messaging/block', authMiddleware, (req, res) => {
+  const { identifier } = req.body;
+  res.json(autoresponder.blockContact(identifier));
+});
+app.post('/api/messaging/unblock', authMiddleware, (req, res) => {
+  const { identifier } = req.body;
+  res.json(autoresponder.unblockContact(identifier));
+});
+
+// Actualizar parámetro en tiempo real
+app.post('/api/messaging/config', authMiddleware, (req, res) => {
+  const { key, value } = req.body;
+  res.json(autoresponder.setConfig(key, value));
 });
 
 // Health check (sin auth)

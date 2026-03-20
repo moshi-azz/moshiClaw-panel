@@ -19,7 +19,8 @@ async function getStats() {
     ]);
 
     const cpuUsage = Math.round(cpuLoad.currentLoad);
-    const ramUsed = Math.round((mem.used / mem.total) * 100);
+    const actualMemUsed = mem.active || (mem.total - mem.available);
+    const ramUsed = Math.round((actualMemUsed / mem.total) * 100);
 
     // Guardar historial
     cpuHistory.push(cpuUsage);
@@ -53,9 +54,9 @@ async function getStats() {
       },
       ram: {
         percent: ramUsed,
-        used: formatBytes(mem.used),
+        used: formatBytes(actualMemUsed),
         total: formatBytes(mem.total),
-        free: formatBytes(mem.free),
+        free: formatBytes(mem.available),
         history: [...ramHistory]
       },
       disks: diskInfo,

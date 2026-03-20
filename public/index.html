@@ -9,7 +9,7 @@
   <meta name="theme-color" content="#0d0d0d">
   <title>moshiClaw Panel</title>
   <link rel="manifest" href="/manifest.json">
-  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -251,6 +251,19 @@
     cursor: pointer; font-size: 16px; color: var(--text2); transition: all 0.15s;
   }
   .icon-btn:hover { background: var(--surface3); color: var(--text); }
+  .btn-primary {
+    background: var(--accent); color: #fff; border: none; border-radius: 8px;
+    cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center;
+    gap: 6px; transition: opacity 0.15s;
+  }
+  .btn-primary:hover { opacity: 0.85; }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-danger {
+    background: var(--red); color: #fff; border: none; border-radius: 8px;
+    cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center;
+    gap: 6px; transition: opacity 0.15s;
+  }
+  .btn-danger:hover { opacity: 0.85; }
 
   /* Content area */
   .content { flex: 1; overflow: hidden; position: relative; }
@@ -534,6 +547,28 @@
   }
   @keyframes blink { 0%,80%,100%{opacity:0.2} 40%{opacity:1} }
 
+  /* Pensamiento interno (modelos con razonamiento: qwen3, deepseek-r1, etc.) */
+  .thinking-block {
+    align-self: flex-start; max-width: 85%;
+    border: 1px solid var(--border); border-radius: 12px;
+    border-bottom-left-radius: 4px; overflow: hidden;
+  }
+  .thinking-toggle {
+    display: flex; align-items: center; gap: 7px; padding: 7px 12px;
+    cursor: pointer; background: var(--surface); color: var(--text3);
+    user-select: none; font-size: 12px; transition: color 0.15s;
+  }
+  .thinking-toggle:hover { color: var(--text2); }
+  .t-arrow { display: inline-block; font-size: 9px; transition: transform 0.2s; }
+  .thinking-toggle.open .t-arrow { transform: rotate(90deg); }
+  .thinking-body {
+    display: none; padding: 10px 14px; color: var(--text3);
+    background: var(--surface2); border-top: 1px solid var(--border);
+    white-space: pre-wrap; line-height: 1.5; font-size: 12px;
+    max-height: 260px; overflow-y: auto;
+  }
+  .thinking-body.open { display: block; }
+
   /* Tool call card */
   .tool-card {
     background: var(--surface2); border: 1px solid var(--border); border-radius: 10px;
@@ -541,10 +576,20 @@
   }
   .tool-card .tool-header { color: var(--orange); margin-bottom: 6px; font-size: 11px; }
   .tool-card .tool-cmd { color: var(--accent); word-break: break-all; }
-  .tool-card .tool-result { color: var(--text2); margin-top: 6px; font-size: 11px; max-height: 100px; overflow-y: auto; }
+  .tool-card .tool-result { color: var(--text2); margin-top: 6px; font-size: 11px; max-height: 150px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; }
+  .tool-card .tool-result.running { color: var(--text2); opacity: 0.7; animation: pulse-opacity 1.2s ease-in-out infinite; }
+  @keyframes pulse-opacity { 0%,100%{opacity:0.5} 50%{opacity:1} }
   .tool-card .tool-actions { display: flex; gap: 6px; margin-top: 8px; }
   .btn-confirm { background: var(--green); color: #000; border: none; border-radius: 6px; padding: 5px 14px; font-size: 12px; font-weight: 700; cursor: pointer; }
   .btn-cancel-tool { background: var(--red); color: #fff; border: none; border-radius: 6px; padding: 5px 14px; font-size: 12px; font-weight: 700; cursor: pointer; }
+  /* Mensajes de progreso del agente */
+  .msg.step-update {
+    background: linear-gradient(90deg, rgba(99,102,241,0.12), rgba(99,102,241,0.04));
+    border-left: 3px solid var(--accent, #6366f1);
+    border-radius: 6px; padding: 7px 12px; font-size: 12.5px;
+    color: var(--text2); font-style: italic; margin: 4px 0;
+    font-family: var(--font-mono, monospace);
+  }
 
   .chat-input-area {
     display: flex; gap: 8px; padding: 10px 12px;
@@ -568,6 +613,37 @@
   .btn-send:active { transform: scale(0.95); }
   .btn-send:disabled { opacity: 0.4; cursor: default; }
 
+  /* ── JARVIS Voice ── */
+  .btn-mic {
+    width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--border);
+    background: var(--surface2); color: var(--text2); cursor: pointer; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+  }
+  .btn-mic:hover { background: var(--surface3); color: var(--text); }
+  .btn-mic.listening { background: var(--red); color: #fff; border-color: var(--red); animation: jarvis-pulse 1s ease-in-out infinite; }
+  .btn-mic.wake { background: rgba(16,185,129,0.2); color: var(--green); border-color: var(--green); }
+  #btn-jarvis-toggle { display: none; }
+  #btn-jarvis-toggle.jarvis-on { color: var(--green) !important; }
+  #jarvis-badge {
+    display: none; align-items: center; gap: 5px;
+    padding: 3px 9px; border-radius: 20px; font-size: 10px; font-weight: 600; letter-spacing: 0.3px;
+    background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.3); color: var(--green);
+    pointer-events: none; /* Evitar que bloquee clics en la UI */
+  }
+  #jarvis-badge.active { display: flex; }
+  #jarvis-badge.cmd { background: rgba(239,68,68,0.12); border-color: rgba(239,68,68,0.3); color: var(--red); }
+  #jarvis-badge .jdot {
+    width: 5px; height: 5px; border-radius: 50%; background: currentColor; animation: jarvis-dot 1.2s ease-in-out infinite;
+  }
+  @keyframes jarvis-pulse {
+    0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.5); }
+    50%      { box-shadow: 0 0 0 8px rgba(239,68,68,0); }
+  }
+  @keyframes jarvis-dot {
+    0%,100% { opacity:1; transform:scale(1); }
+    50%     { opacity:0.3; transform:scale(0.7); }
+  }
+
   /* Markdown simple en mensajes del asistente */
   .msg.assistant code {
     background: var(--surface3); padding: 2px 5px; border-radius: 4px;
@@ -590,6 +666,15 @@
     text-decoration: underline;
     font-size: 12px;
   }
+
+  #debug-console {
+    position: fixed; bottom: 80px; left: 10px; right: 10px; height: 280px;
+    background: rgba(0,0,0,0.85); color: #00ff00; font-family: monospace; font-size: 10px;
+    padding: 8px; border-radius: 8px; overflow-y: auto; -webkit-overflow-scrolling: touch;
+    z-index: 10000; pointer-events: none; border: 1px solid #333; display: none;
+  }
+  #debug-console.visible { display: block; pointer-events: auto; touch-action: pan-y; }
+  #debug-console button { pointer-events: auto; }
 
   /* ─── MOBILE OPTIMIZATIONS ──────────────────────────────────────────────── */
   @media (max-width: 768px) {
@@ -647,7 +732,7 @@
 <div id="login-screen">
   <div class="login-card">
     <div class="login-logo">
-      <span class="eagle"><i data-lucide="shield-check" style="width:48px; height:48px; color:var(--accent);"></i></span>
+      <img src="/logo.png" alt="MoshiClaw Logo" style="width:80px; height:80px; margin-bottom:12px; border-radius:16px;">
       <h1>MOSHICLAW</h1>
       <p>PANEL DE CONTROL REMOTO</p>
     </div>
@@ -675,6 +760,7 @@
       <select id="cfg-provider">
         <option value="gemini">Gemini (Google)</option>
         <option value="deepseek">DeepSeek</option>
+        <option value="ollama">Ollama (local)</option>
       </select>
     </div>
     <div class="settings-group">
@@ -691,6 +777,10 @@
         <optgroup label="DeepSeek">
           <option value="deepseek-chat">DeepSeek Chat</option>
           <option value="deepseek-reasoner">DeepSeek Reasoner (R1)</option>
+        </optgroup>
+        <optgroup label="Ollama (local)">
+          <option value="qwen3:latest">Qwen3 (latest)</option>
+          <option value="qwen3.5:9b">Qwen3.5 9B</option>
         </optgroup>
         <option value="custom">Otro (Introducir manualmente...)</option>
       </select>
@@ -719,7 +809,8 @@
     </div>
     <div style="font-size:11px;color:var(--text3);margin-top:12px;line-height:1.6">
       🔑 <b>Gemini:</b> aistudio.google.com/apikey<br>
-      🔑 <b>DeepSeek:</b> platform.deepseek.com/api_keys
+      🔑 <b>DeepSeek:</b> platform.deepseek.com/api_keys<br>
+      🏠 <b>Ollama:</b> No requiere API key (corre local)
     </div>
     <button class="btn-save" id="btn-save-settings">GUARDAR</button>
   </div>
@@ -729,8 +820,9 @@
 <div id="app">
   <div class="header">
     <div class="header-left">
-      <div class="status-dot" id="conn-dot"></div>
+      <img src="/logo.png" alt="Logo" style="width:24px; height:24px; border-radius:6px; margin-right:4px;">
       <span class="header-title">MOSHICLAW</span>
+      <div class="status-dot" id="conn-dot"></div>
     </div>
     <div class="header-right">
       <button class="icon-btn" id="btn-theme" title="Cambiar tema" onclick="toggleTheme()"><i data-lucide="sun"></i></button>
@@ -778,7 +870,7 @@
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
            <button class="icon-btn" onclick="quickAction('reboot')" style="width:100%; font-size:12px; gap:8px;"><i data-lucide="refresh-cw"></i> Reiniciar</button>
            <button class="icon-btn" onclick="quickAction('shutdown')" style="width:100%; font-size:12px; gap:8px; color:var(--red);"><i data-lucide="power"></i> Apagar</button>
-           <button class="icon-btn" onclick="quickAction('clean')" style="width:100%; font-size:12px; gap:8px;"><i data-lucide="eraser"></i> Limpiar Temp</button>
+           <button class="icon-btn" onclick="quickAction('cleanup')" style="width:100%; font-size:12px; gap:8px;"><i data-lucide="eraser"></i> Limpiar Temp</button>
            <button class="icon-btn" onclick="quickAction('notify')" style="width:100%; font-size:12px; gap:8px;"><i data-lucide="bell"></i> Test Notif</button>
         </div>
       </div>
@@ -840,12 +932,23 @@
 
     <!-- Browser -->
     <div class="panel" id="panel-browser">
-        <div style="padding:10px;display:flex;gap:5px;background:var(--surface2)">
-            <input type="text" id="browser-url" style="flex:1;background:var(--surface);color:white;padding:5px;border:1px solid var(--border);border-radius:4px" placeholder="https://google.com">
-            <button onclick="navBrowser()">Ir</button>
+        <div style="padding:8px 10px;display:flex;gap:5px;background:var(--surface2);border-bottom:1px solid var(--border);flex-wrap:wrap;">
+            <input type="text" id="browser-url" style="flex:1;min-width:0;background:var(--surface);color:white;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;outline:none;" placeholder="https://google.com" onkeydown="if(event.key==='Enter') navBrowser()">
+            <button onclick="navBrowser()" style="background:var(--accent);color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;">Ir</button>
+            <button onclick="browserRefresh()" title="Refresh" style="background:var(--surface);border:1px solid var(--border);color:var(--text2);border-radius:6px;padding:6px 10px;cursor:pointer;font-size:14px;">↺</button>
         </div>
-        <div id="browser-viewport" style="flex:1;background:#fff;display:flex;align-items:center;justify-content:center">
-            <img id="browser-img" style="max-width:100%;max-height:100%;object-fit:contain">
+        <div style="padding:4px 8px;display:flex;gap:4px;background:var(--surface2);border-bottom:1px solid var(--border);">
+            <button onclick="browserScroll('up')" style="flex:1;background:var(--surface);border:1px solid var(--border);color:var(--text2);border-radius:6px;padding:5px;cursor:pointer;font-size:12px;">▲ Scroll ↑</button>
+            <button onclick="browserScroll('down')" style="flex:1;background:var(--surface);border:1px solid var(--border);color:var(--text2);border-radius:6px;padding:5px;cursor:pointer;font-size:12px;">▼ Scroll ↓</button>
+            <button onclick="browserManualScreenshot()" style="flex:1;background:var(--surface);border:1px solid var(--border);color:var(--accent);border-radius:6px;padding:5px;cursor:pointer;font-size:12px;">📷 Captura</button>
+        </div>
+        <div id="browser-viewport" style="flex:1;background:#1a1a1a;display:flex;align-items:center;justify-content:center;overflow:auto;position:relative;">
+            <div id="browser-placeholder" style="text-align:center;color:var(--text3);font-size:13px;padding:20px;">
+                <div style="font-size:32px;margin-bottom:8px;">🌐</div>
+                <div>Ingresá una URL y presioná <b>Ir</b></div>
+                <div style="font-size:11px;margin-top:6px;opacity:0.6;">La IA también puede controlar el navegador</div>
+            </div>
+            <img id="browser-img" style="max-width:100%;display:none;cursor:crosshair;" title="El cursor muestra la posición — la IA puede hacer click">
         </div>
     </div>
 
@@ -865,16 +968,28 @@
 
     <!-- Chat -->
     <div class="panel" id="panel-chat">
-      <div style="padding:10px 14px; background:var(--surface2); border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+      <div style="padding:10px 14px; background:var(--surface2); border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; gap:8px;">
         <span style="font-size:12px; color:var(--text2); font-weight:600; letter-spacing:0.5px;">CHAT IA</span>
-        <button class="icon-btn" onclick="clearChatHistory()" title="Borrar historial" style="width:30px; height:30px; font-size:14px; background:transparent; border:none;">
-          <i data-lucide="trash-2" style="width:16px; height:16px;"></i>
-        </button>
+        <div id="jarvis-badge"><span class="jdot"></span><span id="jarvis-badge-text">JARVIS escuchando...</span></div>
+        <div style="display:flex; gap:4px; align-items:center;">
+          <button class="icon-btn" onclick="toggleDebugConsole()" title="Debug Console" style="width:30px; height:30px; background:transparent; border:none; color:var(--text3);">
+             <i data-lucide="bug" style="width:14px; height:14px;"></i>
+          </button>
+          <button id="btn-jarvis-toggle" class="icon-btn" onclick="toggleJarvisMode()" title="Activar JARVIS (wake word)" style="width:30px; height:30px; background:transparent; border:none; color:var(--text2);">
+            <i data-lucide="mic-vocal" style="width:16px; height:16px;"></i>
+          </button>
+          <button class="icon-btn" onclick="clearChatHistory()" title="Borrar historial" style="width:30px; height:30px; font-size:14px; background:transparent; border:none;">
+            <i data-lucide="trash-2" style="width:16px; height:16px;"></i>
+          </button>
+        </div>
       </div>
       <div class="chat-messages" id="chat-messages">
         <div class="msg system">Chat con moshiClaw activo. Configurá tu API key en ⚙️</div>
       </div>
       <div class="chat-input-area">
+        <button id="btn-mic" class="btn-mic" onclick="toggleManualMic()" title="Hablar (clic para grabar)">
+          <i data-lucide="mic" style="width:16px; height:16px;"></i>
+        </button>
         <textarea id="chat-input" rows="1" placeholder="Preguntale algo a moshiClaw..."></textarea>
         <button class="btn-send" id="btn-send-chat">➤</button>
       </div>
@@ -954,6 +1069,136 @@
       </div>
 
     </div>
+
+    <!-- ─── Mensajería: WhatsApp + Messenger ─────────────────────────────── -->
+    <div class="panel" id="panel-messaging">
+      <div style="padding:10px 14px; background:var(--surface2); border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-size:12px; color:var(--text2); font-weight:600; letter-spacing:0.5px;">MENSAJERÍA</span>
+        <button class="icon-btn" onclick="refreshMessagingStatus()" title="Actualizar estado" style="width:30px;height:30px;background:transparent;border:none;">
+          <i data-lucide="refresh-cw" style="width:16px;height:16px;"></i>
+        </button>
+      </div>
+
+      <div style="flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:16px;">
+
+        <!-- WhatsApp Card -->
+        <div class="chart-card" style="padding:14px;">
+          <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
+            <i data-lucide="message-circle" style="width:22px;height:22px;color:var(--green);flex-shrink:0;"></i>
+            <div style="flex:1;">
+              <div style="font-size:14px; font-weight:700;">WhatsApp</div>
+              <div id="wa-status-text" style="font-size:11px; color:var(--text3);">—</div>
+            </div>
+            <span id="wa-status-dot" style="width:10px;height:10px;border-radius:50%;background:var(--text3);flex-shrink:0;"></span>
+          </div>
+
+          <!-- Tabs QR / Teléfono -->
+          <div id="wa-login-tabs" style="display:flex; gap:4px; margin-bottom:10px;">
+            <button id="wa-tab-qr" onclick="waSetTab('qr')" style="flex:1; padding:5px 8px; font-size:11px; font-weight:600; border-radius:6px; border:1px solid var(--accent); background:var(--accent); color:#fff; cursor:pointer;">📷 QR</button>
+            <button id="wa-tab-phone" onclick="waSetTab('phone')" style="flex:1; padding:5px 8px; font-size:11px; font-weight:600; border-radius:6px; border:1px solid var(--border); background:var(--surface); color:var(--text2); cursor:pointer;">📱 Teléfono</button>
+          </div>
+
+          <!-- QR Box -->
+          <div id="wa-qr-box" style="display:none; text-align:center; margin-bottom:10px;">
+            <div style="font-size:11px; color:var(--text3); margin-bottom:8px;">Escaneá este código con WhatsApp</div>
+            <img id="wa-qr-img" src="" alt="QR" style="width:200px;height:200px;border-radius:8px;border:2px solid var(--border);">
+          </div>
+
+          <!-- Phone Box -->
+          <div id="wa-phone-box" style="display:none; margin-bottom:10px;">
+            <div style="font-size:11px; color:var(--text3); margin-bottom:8px;">Ingresá tu número con código de país, sin el 9 y sin espacios<br><span style="color:var(--text2);">Argentina: 54 + cod.area + número (ej: <b>543455237843</b>)</span></div>
+            <div style="display:flex; gap:6px;">
+              <input id="wa-phone-input" type="text" inputmode="numeric" placeholder="Ej: 543455237843"
+                style="flex:1; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:8px 10px; color:var(--text); font-size:13px; outline:none; letter-spacing:1px;">
+              <button onclick="waRequestPhoneCode()" id="btn-wa-phone-code"
+                style="padding:8px 12px; background:var(--accent); color:#fff; border:none; border-radius:8px; font-size:12px; font-weight:600; cursor:pointer; white-space:nowrap;">
+                Obtener código
+              </button>
+            </div>
+            <!-- Código resultante -->
+            <div id="wa-pairing-code-box" style="display:none; margin-top:10px; text-align:center;">
+              <div style="font-size:11px; color:var(--text3); margin-bottom:6px;">Abrí WhatsApp → Dispositivos vinculados → Vincular con número e ingresá:</div>
+              <div id="wa-pairing-code" style="font-size:28px; font-weight:800; letter-spacing:6px; color:var(--green); font-family:var(--font-mono);"></div>
+            </div>
+          </div>
+
+          <div id="wa-actions" style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn-primary" onclick="waStart()" id="btn-wa-start" style="flex:1; min-width:100px; padding:8px; font-size:13px;">
+              <i data-lucide="power" style="width:14px;height:14px;"></i> Conectar
+            </button>
+            <button class="btn-danger" onclick="waStop()" id="btn-wa-stop" style="flex:1; min-width:100px; padding:8px; font-size:13px; display:none;">
+              <i data-lucide="power-off" style="width:14px;height:14px;"></i> Desconectar
+            </button>
+          </div>
+        </div>
+
+        <!-- Messenger Card -->
+        <div class="chart-card" style="padding:14px;">
+          <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
+            <i data-lucide="facebook" style="width:22px;height:22px;color:var(--accent);flex-shrink:0;"></i>
+            <div style="flex:1;">
+              <div style="font-size:14px; font-weight:700;">Messenger</div>
+              <div id="fb-status-text" style="font-size:11px; color:var(--text3);">—</div>
+              <span id="fb-user-badge" style="display:none; margin-top:4px; font-size:11px; background:rgba(59,130,246,0.15); border:1px solid rgba(59,130,246,0.3); border-radius:20px; padding:2px 8px; color:var(--accent);"></span>
+            </div>
+            <span id="fb-status-dot" style="width:10px;height:10px;border-radius:50%;background:var(--text3);flex-shrink:0;"></span>
+          </div>
+
+          <!-- Login form (solo visible cuando no está conectado) -->
+          <div id="fb-login-form" style="display:flex; flex-direction:column; gap:8px; margin-bottom:10px;">
+            <input id="fb-email" type="email" placeholder="Email de Facebook" autocomplete="username"
+              style="background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:8px 10px; color:var(--text); font-size:13px; outline:none;">
+            <input id="fb-pass" type="password" placeholder="Contraseña" autocomplete="current-password"
+              style="background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:8px 10px; color:var(--text); font-size:13px; outline:none;">
+          </div>
+
+          <!-- Aviso 2FA -->
+          <div id="fb-2fa-box" style="display:none; background:var(--surface2); border:1px solid var(--accent); border-radius:8px; padding:10px; margin-bottom:10px; font-size:12px; color:var(--text2);">
+            ⚠️ Facebook requiere verificación adicional. Completá la verificación en tu teléfono o email de seguridad, luego presioná <strong>Reintentar</strong>.
+            <button onclick="fbRetry2FA()" style="margin-top:8px; width:100%; background:var(--accent); color:#fff; border:none; border-radius:6px; padding:7px; font-size:12px; cursor:pointer;">Reintentar después de verificar</button>
+          </div>
+
+          <div id="fb-actions" style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn-primary" onclick="fbStart()" id="btn-fb-start" style="flex:1; min-width:100px; padding:8px; font-size:13px;">
+              <i data-lucide="log-in" style="width:14px;height:14px;"></i> Conectar
+            </button>
+            <button class="btn-danger" onclick="fbStop()" id="btn-fb-stop" style="flex:1; min-width:100px; padding:8px; font-size:13px; display:none;">
+              <i data-lucide="log-out" style="width:14px;height:14px;"></i> Desconectar
+            </button>
+          </div>
+        </div>
+
+        <!-- Autoresponder Card -->
+        <div class="chart-card" style="padding:14px;">
+          <div style="font-size:13px; font-weight:600; margin-bottom:12px; display:flex; align-items:center; gap:7px;">
+            <i data-lucide="bot" style="width:15px;height:15px;color:var(--accent2);"></i> Autoresponder IA
+          </div>
+          <!-- Modo Global -->
+          <div style="font-size:11px; color:var(--text3); letter-spacing:0.5px; text-transform:uppercase; margin-bottom:8px;">Modo</div>
+          <div style="display:flex; gap:6px; margin-bottom:14px;">
+            <button id="ar-btn-auto" onclick="arSetMode('AUTO')" style="flex:1; padding:7px 4px; font-size:11px; font-weight:700; border-radius:8px; border:1px solid var(--border); background:var(--surface2); color:var(--text2); cursor:pointer; transition:all 0.15s;">⚡ AUTO</button>
+            <button id="ar-btn-semi" onclick="arSetMode('SEMI')" style="flex:1; padding:7px 4px; font-size:11px; font-weight:700; border-radius:8px; border:1px solid var(--border); background:var(--surface2); color:var(--text2); cursor:pointer; transition:all 0.15s;">👁 SEMI</button>
+            <button id="ar-btn-pausado" onclick="arSetMode('PAUSADO')" style="flex:1; padding:7px 4px; font-size:11px; font-weight:700; border-radius:8px; border:1px solid var(--border); background:var(--surface2); color:var(--text2); cursor:pointer; transition:all 0.15s;">⏸ PAUSA</button>
+          </div>
+          <!-- Stats -->
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:10px;">
+            <div style="background:var(--surface2); border-radius:8px; padding:8px; text-align:center;">
+              <div style="font-size:18px; font-weight:700; color:var(--accent);" id="ar-stat-pending">—</div>
+              <div style="font-size:10px; color:var(--text3);">Pendientes</div>
+            </div>
+            <div style="background:var(--surface2); border-radius:8px; padding:8px; text-align:center;">
+              <div style="font-size:18px; font-weight:700; color:var(--green);" id="ar-stat-history">—</div>
+              <div style="font-size:10px; color:var(--text3);">Procesados</div>
+            </div>
+          </div>
+          <div id="autoresponder-status-msg" style="font-size:11px; color:var(--text3); margin-bottom:8px;">Cargando...</div>
+          <!-- Pendientes rápidos -->
+          <div id="ar-pending-list" style="display:flex; flex-direction:column; gap:6px;"></div>
+        </div>
+
+      </div>
+    </div>
+
   </div>
 
   <div class="tab-bar">
@@ -970,6 +1215,7 @@
     <button class="more-item" data-panel="scripts"><i data-lucide="scroll-text"></i> Scripts Vault</button>
     <button class="more-item" data-panel="browser"><i data-lucide="globe"></i> Navegador Web</button>
     <button class="more-item" data-panel="webcam"><i data-lucide="camera"></i> Webcam</button>
+    <button class="more-item" data-panel="messaging"><i data-lucide="message-circle"></i> Mensajería</button>
   </div>
 </div>
 
@@ -1304,6 +1550,118 @@ function init() {
   if (typeof lucide !== 'undefined') {
     lucide.createIcons();
   }
+
+  // Jarvis voice
+  initJarvis();
+
+  // Reiniciar escucha JARVIS + WebSocket al volver a la app (móvil / iOS PWA)
+  document.addEventListener('visibilitychange', () => {
+    try {
+      if (document.visibilityState === 'visible') {
+        logDebug("📱 App Visible - Reiniciando...");
+        if (_keepAliveCtx && _keepAliveCtx.state === 'suspended') _keepAliveCtx.resume().catch(() => {});
+
+        // ── Reconexión inmediata del WebSocket si iOS lo cerró en segundo plano ──
+        if (!eventsWS || eventsWS.readyState === WebSocket.CLOSED || eventsWS.readyState === WebSocket.CLOSING) {
+          logDebug("📡 WS caído, reconectando...");
+          connectEvents();
+        }
+
+        // Timeout para que el sistema operativo libere el micro si estaba en uso
+        setTimeout(() => {
+          if (jarvisMode && !jarvisCapturing && !jarvisRec) {
+            jarvisBadge('wake', 'JARVIS escuchando...');
+            startWakeListener();
+          }
+        }, 800);
+      } else {
+        logDebug("📱 App Background - Deteniendo micro...");
+        stopWakeListener();
+        // Forzar limpieza de cualquier instancia colgada
+        if (jarvisRec) { try { jarvisRec.abort(); } catch(e){} jarvisRec = null; }
+      }
+    } catch (err) {
+      logDebug("Visibility Error: " + err.message);
+    }
+  });
+
+  // Global Error Handler for Mobile
+  window.onerror = (msg, url, line) => {
+    logDebug("🔥 Error: " + msg + " at line " + line);
+  };
+}
+
+function logDebug(msg) {
+  const dc = qs('#debug-console');
+  if (!dc) return;
+  const entry = document.createElement('div');
+  entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+  dc.appendChild(entry);
+  dc.scrollTop = dc.scrollHeight;
+  console.log("DEBUG:", msg);
+}
+
+function toggleDebugConsole() {
+  const dc = qs('#debug-console');
+  dc.classList.toggle('visible');
+  if (dc.classList.contains('visible') && !qs('#btn-test-sound')) {
+    const btn = document.createElement('button');
+    btn.id = 'btn-test-sound';
+    btn.textContent = '🔊 PROBAR SONIDO (BEEP)';
+    btn.style = 'background:#10b981; color:white; border:none; padding:8px 12px; border-radius:6px; font-size:12px; margin-bottom:6px; cursor:pointer; font-weight:bold; width:100%; display:block;';
+    btn.onclick = () => {
+      playTestBeep();
+      _doSpeak("Probando sistema de voz.", 1.0, 1.0);
+    };
+
+    const btnVoices = document.createElement('button');
+    btnVoices.id = 'btn-list-voices';
+    btnVoices.textContent = '🎙️ VER VOCES DISPONIBLES';
+    btnVoices.style = 'background:#6366f1; color:white; border:none; padding:8px 12px; border-radius:6px; font-size:12px; margin-bottom:6px; cursor:pointer; font-weight:bold; width:100%; display:block;';
+    btnVoices.onclick = () => {
+      const voices = window.speechSynthesis.getVoices();
+      if (voices.length === 0) { logDebug("⚠️ Sin voces cargadas aún"); return; }
+      logDebug("── VOCES EN ESTE DISPOSITIVO ──");
+      voices.forEach((v, i) => logDebug(`${i+1}. ${v.name} [${v.lang}]${v.default ? ' ★' : ''}`));
+      logDebug(`── VOZ JARVIS ACTUAL: ${jarvisVoice ? jarvisVoice.name : 'ninguna'} ──`);
+    };
+
+    const btnCopyVoices = document.createElement('button');
+    btnCopyVoices.id = 'btn-copy-voices';
+    btnCopyVoices.textContent = '📋 COPIAR LISTA DE VOCES';
+    btnCopyVoices.style = 'background:#f59e0b; color:white; border:none; padding:8px 12px; border-radius:6px; font-size:12px; margin-bottom:12px; cursor:pointer; font-weight:bold; width:100%; display:block;';
+    btnCopyVoices.onclick = () => {
+      const voices = window.speechSynthesis.getVoices();
+      if (voices.length === 0) { logDebug("⚠️ Sin voces cargadas aún"); return; }
+      const txt = voices.map((v, i) => `${i+1}. ${v.name} [${v.lang}]${v.default ? ' ★' : ''}`).join('\n')
+        + `\n\nJARVIS usa: ${jarvisVoice ? jarvisVoice.name : 'ninguna'}`;
+      navigator.clipboard.writeText(txt)
+        .then(() => logDebug("✅ Lista copiada al portapapeles"))
+        .catch(() => logDebug("❌ No se pudo copiar (permiso denegado)"));
+    };
+
+    dc.prepend(btnCopyVoices);
+    dc.prepend(btnVoices);
+    dc.prepend(btn);
+  }
+}
+
+function playTestBeep() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(440, ctx.currentTime);
+    gain.gain.setValueAtTime(0.1, ctx.currentTime);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.2);
+    logDebug("🎵 Beep de prueba enviado...");
+  } catch (err) {
+    logDebug("❌ Beep Error: " + err.message);
+  }
 }
 
 // ─── PANEL SWITCHING ──────────────────────────────────────────────────────────
@@ -1314,7 +1672,7 @@ function switchPanel(name) {
   });
   
   // Highlight the More Menu button if a hidden panel is active
-  const isHiddenPanel = ['terminal', 'screen', 'browser', 'webcam'].includes(name);
+  const isHiddenPanel = ['terminal', 'screen', 'browser', 'webcam', 'messaging'].includes(name);
   qs('#btn-more-menu').classList.toggle('active', isHiddenPanel);
 
   const panel = qs(`#panel-${name}`);
@@ -1328,6 +1686,7 @@ function switchPanel(name) {
       loadHealthHistory();
   }
   if (name === 'scripts') loadScripts();
+  if (name === 'messaging') refreshMessagingStatus();
   if (name === 'files') {
       if (!fmInitialized) {
           qs('#fm-path').value = '/';
@@ -1358,6 +1717,12 @@ function connectEvents() {
   eventsWS.onopen = () => {
     dot.classList.remove('offline');
     console.log('Events WS connected');
+    // Si la UI quedó atascada en "pensando" (por desconexión), resetearla
+    if (pendingThinkingEl) {
+      removeThinking();
+      qs('#btn-send-chat').disabled = false;
+      addMessage('🔄 Reconectado. Si esperabas una respuesta, el agente puede haber terminado mientras estabas desconectado. Podés preguntar "¿qué hiciste?" para continuar.', 'system');
+    }
   };
 
   eventsWS.onclose = () => {
@@ -1371,9 +1736,9 @@ function connectEvents() {
     const msg = JSON.parse(e.data);
     if (msg.type === 'stats') updateStats(msg.data);
     else if (msg.type === 'chat_thinking') showThinking(msg.sessionId);
-    else if (msg.type === 'chat_response') showResponse(msg.content, msg.provider);
+    else if (msg.type === 'chat_response') showResponse(msg.content, msg.provider, msg.thinking);
     else if (msg.type === 'chat_error') showChatError(msg.error);
-    else if (msg.type === 'chat_tool') handleToolEvent(msg);
+    else if (msg.type === 'chat_tool') { removeThinking(); handleToolEvent(msg); }
     else if (msg.type === 'browser_status') {
         eventsWS.send(JSON.stringify({ type: 'browser', action: 'screenshot' }));
     }
@@ -1443,19 +1808,24 @@ async function quickAction(type) {
   if (!confirm(`¿Ejecutar acción: ${type}?`)) return;
   
   try {
-    const res = await fetch('/api/chat', {
+    const res = await fetch(`/api/system/${type}`, {
        method: 'POST',
-       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken },
-       body: JSON.stringify({ 
-         message: type === 'reboot' ? 'reiniciar el sistema' : 
-                  type === 'shutdown' ? 'apagar el sistema' : 
-                  'limpiar archivos temporales',
-         sessionId: chatSessionId,
-         settings: { autoExec: true } // Force autoExec for quick actions
-       })
+       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken }
     });
-    alert('Acción enviada a la IA para ejecución.');
-  } catch(e) { alert('Error al enviar acción'); }
+    const data = await res.json();
+    if (data.success) {
+        alert(data.message || 'Acción ejecutada con éxito.');
+        if (type === 'reboot' || type === 'shutdown') {
+            // Indicar que se perderá la conexión
+            document.body.innerHTML = `<div style="display:flex; height:100vh; align-items:center; justify-content:center; flex-direction:column; background:#000; color:#fff;">
+                <h1 style="color:var(--accent)">${type === 'reboot' ? 'Reiniciando...' : 'Apagando...'}</h1>
+                <p>La conexión se ha cerrado.</p>
+            </div>`;
+        }
+    } else {
+        alert('Error: ' + data.error);
+    }
+  } catch(e) { alert('Error al enviar acción directa al sistema'); }
 }
 // ─── SCRIPT VAULT (Phase 4) ──────────────────────────────────────────────────
 async function loadScripts() {
@@ -2434,8 +2804,29 @@ function navBrowser() {
     eventsWS.send(JSON.stringify({ type: 'browser', action: 'navigate', url }));
 }
 
+function browserRefresh() {
+    const url = qs('#browser-url').value;
+    if (url) navBrowser();
+    else eventsWS && eventsWS.send(JSON.stringify({ type: 'browser', action: 'screenshot' }));
+}
+
+function browserScroll(dir) {
+    // Scroll usando evaluate en el navegador headless
+    eventsWS && eventsWS.send(JSON.stringify({
+        type: 'browser', action: 'scroll', direction: dir
+    }));
+}
+
+function browserManualScreenshot() {
+    eventsWS && eventsWS.send(JSON.stringify({ type: 'browser', action: 'screenshot' }));
+}
+
 function updateBrowserScreenshot(imgB64) {
-    qs('#browser-img').src = 'data:image/jpeg;base64,' + imgB64;
+    const img = qs('#browser-img');
+    if (img) img.src = 'data:image/jpeg;base64,' + imgB64;
+    const placeholder = qs('#browser-placeholder');
+    if (placeholder) placeholder.style.display = 'none';
+    if (img) img.style.display = 'block';
 }
 
 // ─── WEBCAM ───────────────────────────────────────────────────────────────────
@@ -2694,10 +3085,31 @@ function removeThinking() {
   btn.title = 'Enviar mensaje';
 }
 
-function showResponse(text, provider) {
+function toggleThinking(btn) {
+  btn.classList.toggle('open');
+  btn.nextElementSibling.classList.toggle('open');
+}
+
+function showResponse(text, provider, thinking) {
   removeThinking();
+  if (thinking) {
+    const words = thinking.trim().split(/\s+/).length;
+    const thinkEl = document.createElement('div');
+    thinkEl.className = 'thinking-block';
+    thinkEl.innerHTML = `
+      <div class="thinking-toggle" onclick="toggleThinking(this)">
+        <span class="t-arrow">▶</span>
+        <span>💭 Pensamiento interno</span>
+        <span style="margin-left:auto;opacity:0.45;font-size:11px">${words} palabras</span>
+      </div>
+      <div class="thinking-body">${renderMarkdown(thinking)}</div>`;
+    qs('#chat-messages').appendChild(thinkEl);
+    thinkEl.scrollIntoView({ behavior: 'smooth' });
+  }
   const el = addMessage(text, 'assistant');
   qs('#btn-send-chat').disabled = false;
+  if (lastQueryWasVoice || jarvisMode) jarvisNotify(text);
+  speakResponse(text);
 }
 
 function showChatError(err) {
@@ -2706,21 +3118,75 @@ function showChatError(err) {
   qs('#btn-send-chat').disabled = false;
 }
 
+// Mapa para vincular tarjetas de herramientas con sus resultados por toolId único
+const _toolCardMap = new Map();
+
 function handleToolEvent(event) {
-  if (event.type === 'executing') {
+  // 'toolType' es el tipo real del evento (server.js lo separa para no pisar msg.type='chat_tool')
+  const evtType = event.toolType || event.type;
+
+  if (evtType === 'step') {
+    // Mensajes de progreso del agente (step_update tool)
+    const stepEl = document.createElement('div');
+    stepEl.className = 'msg step-update';
+    stepEl.textContent = event.message;
+    qs('#chat-messages').appendChild(stepEl);
+    stepEl.scrollIntoView({ behavior: 'smooth' });
+    return;
+  }
+
+  if (evtType === 'executing') {
+    // step_update se muestra solo como mensaje de progreso (evento 'step'), no como tarjeta
+    if (event.name === 'step_update') return;
+    const toolId = event.toolId || `tc_${Date.now()}_${Math.random()}`;
+    // Formatear args según el tipo de herramienta
+    let cmdDisplay = '';
+    if (event.name === 'write_file') {
+      const lines = (event.args && event.args.content || '').split('\n').length;
+      cmdDisplay = `📄 ${escapeHtml(event.args.path || '')} (${lines} líneas)`;
+    } else if (event.name === 'step_update') {
+      cmdDisplay = escapeHtml(event.args && event.args.message || '');
+    } else if (event.args && event.args.command) {
+      cmdDisplay = `<span style="opacity:0.6">$</span> ${escapeHtml(event.args.command)}`;
+    } else {
+      cmdDisplay = escapeHtml(JSON.stringify(event.args || {}));
+    }
     const card = document.createElement('div');
     card.className = 'tool-card';
+    card.dataset.toolId = toolId;
     card.innerHTML = `
-      <div class="tool-header">⚡ Ejecutando: ${event.name}</div>
-      <div class="tool-cmd">$ ${event.args.command || JSON.stringify(event.args)}</div>
-      <div class="tool-result" id="tool-result-${event.confirmId || ''}">Ejecutando...</div>
+      <div class="tool-header">⚡ ${escapeHtml(event.name)}</div>
+      <div class="tool-cmd">${cmdDisplay}</div>
+      <div class="tool-result running">⏳ Ejecutando...</div>
     `;
     qs('#chat-messages').appendChild(card);
     card.scrollIntoView({ behavior: 'smooth' });
-  } else if (event.type === 'result') {
-    const resultEl = document.querySelector(`#tool-result-${event.confirmId || ''}`);
-    if (resultEl) resultEl.textContent = event.result;
-  } else if (event.type === 'needs_confirmation') {
+    _toolCardMap.set(toolId, card);
+  } else if (evtType === 'result') {
+    if (event.name === 'step_update') return; // ya manejado por el evento 'step'
+    const toolId = event.toolId;
+    const card = toolId ? _toolCardMap.get(toolId) : null;
+    if (card) {
+      const resultEl = card.querySelector('.tool-result');
+      if (resultEl) {
+        resultEl.classList.remove('running');
+        const resultText = String(event.result || '');
+        if (resultText.length > 600) {
+          const short = escapeHtml(resultText.slice(0, 600));
+          const full = escapeHtml(resultText);
+          resultEl.innerHTML = `<span class="r-short">${short}<span style="opacity:0.4">…</span></span><span class="r-full" style="display:none">${full}</span><button onclick="var s=this.previousElementSibling,p=s.previousElementSibling;s.style.display=s.style.display==='none'?'block':'none';p.style.display=p.style.display==='none'?'block':'none';this.textContent=this.textContent.includes('más')?'▲ menos':'▼ Ver más';" style="font-size:11px;color:var(--accent,#6366f1);background:none;border:none;cursor:pointer;padding:2px 0;display:block;margin-top:4px">▼ Ver más</button>`;
+        } else {
+          resultEl.textContent = resultText || '(sin salida)';
+        }
+        if (/\berror\b/i.test(resultText) && !resultText.startsWith('✅')) {
+          resultEl.style.color = 'var(--red, #f87171)';
+        } else if (resultText.startsWith('✅')) {
+          resultEl.style.color = 'var(--green, #4ade80)';
+        }
+      }
+      _toolCardMap.delete(toolId);
+    }
+  } else if (evtType === 'needs_confirmation') {
     // Si ya aceptamos todo esta sesión, confirmamos automáticamente
     if (sessionAutoExec) {
         confirmTool(event.confirmId);
@@ -2741,6 +3207,7 @@ function handleToolEvent(event) {
         <button class="btn-confirm btn-confirm-all" style="background:var(--accent2); color:white" title="Aceptar todos los comandos de esta sesión">✓ Aceptar Todo</button>
         <button class="btn-cancel-tool btn-cancel-action" title="Denegar">✕ Negar</button>
       </div>
+      <div class="tool-result" style="display:none"></div>
     `;
     card.querySelector('.btn-confirm-action').addEventListener('click', () => {
       confirmTool(event.confirmId);
@@ -2757,6 +3224,8 @@ function handleToolEvent(event) {
     qs('#chat-messages').appendChild(card);
     card.scrollIntoView({ behavior: 'smooth' });
     pendingToolCards[event.confirmId] = card;
+    // Registrar en _toolCardMap para que el resultado actualice la tarjeta
+    if (event.toolId) _toolCardMap.set(event.toolId, card);
   }
 }
 
@@ -2766,7 +3235,10 @@ function confirmTool(confirmId) {
   if (eventsWS && eventsWS.readyState === WebSocket.OPEN) {
     eventsWS.send(JSON.stringify({ type: 'confirm_tool', confirmId, toolName: data.toolName, args: data.args }));
     if (pendingToolCards[confirmId]) {
-      pendingToolCards[confirmId].querySelector('.tool-actions').innerHTML = '<span style="color:var(--green);font-size:12px">✓ Ejecutando...</span>';
+      const actionsEl = pendingToolCards[confirmId].querySelector('.tool-actions');
+      if (actionsEl) actionsEl.innerHTML = '<span style="color:var(--green);font-size:12px">✓ Aceptado</span>';
+      const resultEl = pendingToolCards[confirmId].querySelector('.tool-result');
+      if (resultEl) { resultEl.style.display = ''; resultEl.classList.add('running'); resultEl.textContent = '⏳ Ejecutando...'; }
     }
     delete pendingToolData[confirmId];
   }
@@ -2798,7 +3270,7 @@ function sendChatMessage() {
   const msg = input.value.trim();
   if (!msg) return;
 
-  if (!settings.apiKey) {
+  if (!settings.apiKey && settings.provider !== 'ollama') {
     addMessage('Configurá tu API key en ⚙️ primero.', 'system');
     return;
   }
@@ -2848,9 +3320,24 @@ function stopChatResponse() {
 }
 
 // ─── SETTINGS ─────────────────────────────────────────────────────────────────
+function updateApiKeyHint() {
+  const prov = qs('#cfg-provider').value;
+  const apikeyInput = qs('#cfg-apikey');
+  if (prov === 'ollama') {
+    apikeyInput.placeholder = 'No requerida (Ollama corre local)';
+    apikeyInput.disabled = true;
+    apikeyInput.value = '';
+  } else {
+    apikeyInput.placeholder = 'Pegá tu API key aquí';
+    apikeyInput.disabled = false;
+  }
+}
+
 function openSettings() {
   qs('#cfg-provider').value = settings.provider || 'gemini';
   qs('#cfg-apikey').value = settings.apiKey || '';
+  updateApiKeyHint();
+  qs('#cfg-provider').onchange = updateApiKeyHint;
   
   // Sync model dropdown
   const modelSelect = qs('#cfg-model-select');
@@ -2968,8 +3455,786 @@ function setupViewportFix() {
   onViewportChange();
 }
 
+// ─── AUTORESPONDER UI ────────────────────────────────────────────────────────
+async function arSetMode(mode) {
+  const token = localStorage.getItem('oc_token') || '';
+  try {
+    const res = await fetch('/api/messaging/mode', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ mode })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      arHighlightMode(mode);
+      const statusEl = qs('#autoresponder-status-msg');
+      const modeLabels = { AUTO: '⚡ AUTO — Responde automáticamente', SEMI: '👁 SEMI — Requiere aprobación', PAUSADO: '⏸ PAUSADO — Sin respuestas automáticas' };
+      if (statusEl) statusEl.textContent = modeLabels[mode] || mode;
+    }
+  } catch(e) { console.error('arSetMode:', e); }
+}
+
+function arHighlightMode(mode) {
+  const modes = ['auto', 'semi', 'pausado'];
+  const colors = { auto: 'var(--green)', semi: 'var(--orange)', pausado: 'var(--red)' };
+  modes.forEach(m => {
+    const btn = qs(`#ar-btn-${m}`);
+    if (!btn) return;
+    const isActive = m === mode.toLowerCase();
+    btn.style.background = isActive ? colors[m] : 'var(--surface2)';
+    btn.style.color = isActive ? '#fff' : 'var(--text2)';
+    btn.style.borderColor = isActive ? colors[m] : 'var(--border)';
+    btn.style.fontWeight = isActive ? '800' : '700';
+  });
+}
+
+async function arApprove(pendingId) {
+  const token = localStorage.getItem('oc_token') || '';
+  try {
+    await fetch(`/api/messaging/approve/${pendingId}`, {
+      method: 'POST', headers: { 'Authorization': 'Bearer ' + token }
+    });
+    await refreshMessagingStatus();
+  } catch(e) { alert('Error al aprobar: ' + e.message); }
+}
+
+async function arReject(pendingId) {
+  const token = localStorage.getItem('oc_token') || '';
+  try {
+    await fetch(`/api/messaging/reject/${pendingId}`, {
+      method: 'POST', headers: { 'Authorization': 'Bearer ' + token }
+    });
+    await refreshMessagingStatus();
+  } catch(e) { alert('Error al rechazar: ' + e.message); }
+}
+
+// ─── MENSAJERÍA ───────────────────────────────────────────────────────────────
+
+let waQrPoller = null;
+
+async function refreshMessagingStatus() {
+  try {
+    const res = await fetch('/api/messaging/status', { headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('oc_token') || '') } });
+    if (!res.ok) return;
+    const data = await res.json();
+    updateWaUI(data.whatsapp);
+    updateFbUI(data.messenger);
+    // Autoresponder
+    const arEl = qs('#autoresponder-status-msg');
+    if (arEl && data.autoresponder) {
+      const ar = data.autoresponder;
+      arEl.textContent = ar.enabled
+        ? `Activo — ${ar.rules?.length || 0} regla(s) configurada(s)`
+        : 'Desactivado';
+      arEl.style.color = ar.enabled ? 'var(--green)' : 'var(--text3)';
+    }
+  } catch (e) {
+    console.error('refreshMessagingStatus:', e);
+  }
+}
+
+function updateWaUI(wa) {
+  if (!wa) return;
+  const dot = qs('#wa-status-dot');
+  const txt = qs('#wa-status-text');
+  const qrBox = qs('#wa-qr-box');
+  const qrImg = qs('#wa-qr-img');
+  const btnStart = qs('#btn-wa-start');
+  const btnStop = qs('#btn-wa-stop');
+
+  const statusMap = {
+    disconnected:  { label: 'Desconectado', color: 'var(--text3)' },
+    starting:      { label: 'Iniciando...', color: 'var(--orange)' },
+    qr_pending:    { label: 'Esperando escaneo QR', color: 'var(--orange)' },
+    phone_pending: { label: 'Generando código...', color: 'var(--orange)' },
+    authenticated: { label: 'Autenticado', color: 'var(--orange)' },
+    ready:         { label: 'Conectado ✓', color: 'var(--green)' },
+    error:         { label: 'Error', color: 'var(--red)' },
+  };
+  const s = statusMap[wa.status] || { label: wa.status, color: 'var(--text3)' };
+  if (dot) dot.style.background = s.color;
+  if (txt) txt.textContent = s.label + (wa.error ? ` — ${wa.error}` : '');
+
+  const isReady = wa.status === 'ready';
+  const tabs = qs('#wa-login-tabs');
+  if (btnStart) btnStart.style.display = isReady ? 'none' : 'flex';
+  if (btnStop)  btnStop.style.display  = isReady ? 'flex' : 'none';
+  if (tabs)     tabs.style.display     = isReady ? 'none' : 'flex';
+
+  // Mostrar pairing code si llegó — cambiar al tab phone automáticamente
+  if (wa.pairingCode) {
+    const codeEl  = qs('#wa-pairing-code');
+    const codeBox = qs('#wa-pairing-code-box');
+    if (codeEl && codeEl.textContent !== wa.pairingCode) {
+      codeEl.textContent  = wa.pairingCode;
+      if (codeBox) codeBox.style.display = 'block';
+      if (txt) txt.textContent = '📋 Ingresá este código en WhatsApp';
+    }
+    // Siempre asegurar que el tab teléfono está visible
+    waSetTab('phone');
+    startWaQrPoller(); // seguir esperando que se autentique
+  }
+
+  if (wa.status === 'qr_pending' && wa.qr) {
+    const phoneBox = qs('#wa-phone-box');
+    if (qrBox && (!phoneBox || phoneBox.style.display === 'none')) {
+      if (qrImg) qrImg.src = wa.qr;
+      if (qrBox) qrBox.style.display = 'block';
+    } else if (qrImg) {
+      qrImg.src = wa.qr;
+    }
+    startWaQrPoller();
+  } else if (!isReady) {
+    if (qrBox && wa.status !== 'qr_pending') qrBox.style.display = 'none';
+    if (wa.status === 'disconnected' || wa.status === 'error') stopWaQrPoller();
+  } else {
+    if (qrBox) qrBox.style.display = 'none';
+    stopWaQrPoller();
+  }
+}
+
+function updateFbUI(fb) {
+  if (!fb) return;
+  const dot = qs('#fb-status-dot');
+  const txt = qs('#fb-status-text');
+  const loginForm = qs('#fb-login-form');
+  const twoFaBox = qs('#fb-2fa-box');
+  const btnStart = qs('#btn-fb-start');
+  const btnStop  = qs('#btn-fb-stop');
+  const userBadge = qs('#fb-user-badge');
+
+  const statusMap = {
+    disconnected: { label: 'Desconectado', color: 'var(--text3)' },
+    starting:     { label: 'Iniciando...', color: 'var(--orange)' },
+    logging_in:   { label: 'Iniciando sesión...', color: 'var(--orange)' },
+    needs_2fa:    { label: 'Requiere verificación', color: 'var(--orange)' },
+    ready:        { label: 'Conectado ✓', color: 'var(--green)' },
+    error:        { label: 'Error', color: 'var(--red)' },
+  };
+  const s = statusMap[fb.status] || { label: fb.status, color: 'var(--text3)' };
+  if (dot) dot.style.background = s.color;
+
+  const isReady = fb.status === 'ready';
+  const needs2fa = fb.status === 'needs_2fa';
+
+  // Mostrar nombre de usuario cuando está conectado
+  if (isReady && (fb.username || fb.email)) {
+    const displayName = fb.username || fb.email;
+    if (txt) txt.textContent = `Conectado como: ${displayName}`;
+    if (userBadge) {
+      userBadge.textContent = `👤 ${displayName}`;
+      userBadge.style.display = 'inline-block';
+    }
+  } else {
+    if (txt) txt.textContent = s.label + (fb.error ? ` — ${fb.error}` : '');
+    if (userBadge) userBadge.style.display = 'none';
+  }
+
+  if (loginForm) loginForm.style.display = isReady ? 'none' : 'flex';
+  if (twoFaBox)  twoFaBox.style.display  = needs2fa ? 'block' : 'none';
+  if (btnStart)  btnStart.style.display  = isReady ? 'none' : 'flex';
+  if (btnStop)   btnStop.style.display   = isReady ? 'flex' : 'none';
+}
+
+async function waStart() {
+  const btn = qs('#btn-wa-start');
+  if (btn) { btn.disabled = true; btn.textContent = 'Iniciando...'; }
+  try {
+    await fetch('/api/messaging/whatsapp/start', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('oc_token') || '') }
+    });
+    await refreshMessagingStatus();
+    startWaQrPoller();
+  } catch (e) {
+    console.error('waStart:', e);
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i data-lucide="power" style="width:14px;height:14px;"></i> Conectar'; if (typeof lucide !== 'undefined') lucide.createIcons(); }
+  }
+}
+
+async function waStop() {
+  await fetch('/api/messaging/whatsapp/stop', {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('oc_token') || '') }
+  });
+  stopWaQrPoller();
+  await refreshMessagingStatus();
+}
+
+function startWaQrPoller() {
+  if (waQrPoller) return;
+  waQrPoller = setInterval(async () => {
+    try {
+      const res = await fetch('/api/messaging/whatsapp/qr', { headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('oc_token') || '') } });
+      const data = await res.json();
+
+      if (data.status === 'ready' || data.status === 'authenticated') {
+        stopWaQrPoller();
+        await refreshMessagingStatus();
+        return;
+      }
+
+      // Pairing code por teléfono
+      if (data.pairingCode) {
+        const codeEl  = qs('#wa-pairing-code');
+        const codeBox = qs('#wa-pairing-code-box');
+        const stTxt   = qs('#wa-status-text');
+        if (codeEl && codeEl.textContent !== data.pairingCode) {
+          codeEl.textContent = data.pairingCode;
+          if (codeBox) codeBox.style.display = 'block';
+          if (stTxt)   stTxt.textContent = 'Ingresá el código en WhatsApp';
+          // Asegurar que el tab teléfono esté visible
+          waSetTab('phone');
+        }
+        return; // seguir esperando
+      }
+
+      // QR normal
+      if (data.status === 'qr_pending' && data.qr) {
+        const img = qs('#wa-qr-img');
+        if (img) img.src = data.qr;
+        const phoneBox = qs('#wa-phone-box');
+        const qrBox = qs('#wa-qr-box');
+        if (qrBox && (!phoneBox || phoneBox.style.display === 'none')) {
+          qrBox.style.display = 'block';
+        }
+        const txt = qs('#wa-status-text');
+        if (txt) txt.textContent = 'Esperando escaneo QR';
+        const dot = qs('#wa-status-dot');
+        if (dot) dot.style.background = 'var(--orange)';
+      } else {
+        await refreshMessagingStatus();
+      }
+    } catch {}
+  }, 4000);
+}
+
+function stopWaQrPoller() {
+  if (waQrPoller) { clearInterval(waQrPoller); waQrPoller = null; }
+}
+
+// Toggle entre tab QR y tab Teléfono
+function waSetTab(tab) {
+  const tabQR    = qs('#wa-tab-qr');
+  const tabPhone = qs('#wa-tab-phone');
+  const qrBox    = qs('#wa-qr-box');
+  const phoneBox = qs('#wa-phone-box');
+  const pairBox  = qs('#wa-pairing-code-box');
+
+  if (tab === 'qr') {
+    if (tabQR)    { tabQR.style.background = 'var(--accent)'; tabQR.style.color = '#fff'; tabQR.style.borderColor = 'var(--accent)'; }
+    if (tabPhone) { tabPhone.style.background = 'var(--surface)'; tabPhone.style.color = 'var(--text2)'; tabPhone.style.borderColor = 'var(--border)'; }
+    // Mostrar QR si hay uno disponible
+    const img = qs('#wa-qr-img');
+    if (qrBox && img && img.src && img.src !== window.location.href) {
+      qrBox.style.display = 'block';
+    }
+    if (phoneBox) phoneBox.style.display = 'none';
+  } else {
+    if (tabPhone) { tabPhone.style.background = 'var(--accent)'; tabPhone.style.color = '#fff'; tabPhone.style.borderColor = 'var(--accent)'; }
+    if (tabQR)    { tabQR.style.background = 'var(--surface)'; tabQR.style.color = 'var(--text2)'; tabQR.style.borderColor = 'var(--border)'; }
+    if (qrBox)    qrBox.style.display = 'none';
+    if (phoneBox) phoneBox.style.display = 'block';
+    if (pairBox)  pairBox.style.display = 'none';
+  }
+}
+
+async function waRequestPhoneCode() {
+  const inputEl = qs('#wa-phone-input');
+  const rawValue = inputEl ? String(inputEl.value || '') : '';
+  const phone = rawValue.replace(/[^0-9]/g, '');
+
+  if (!phone || phone.length < 8) {
+    alert('Ingresá un número válido (solo dígitos, con código de país)\nArgentina sin el 9: 543455237843');
+    return;
+  }
+
+  const btn = qs('#btn-wa-phone-code');
+  const statusTxt = qs('#wa-status-text');
+
+  if (btn) { btn.disabled = true; btn.textContent = 'Iniciando...'; }
+  if (statusTxt) statusTxt.textContent = 'Arrancando WhatsApp (~20s)...';
+
+  try {
+    // Detener si estaba en estado de error o QR para reiniciar en modo teléfono
+    const statusRes = await fetch('/api/messaging/status', {
+      headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('oc_token') || '') }
+    });
+    const statusData = await statusRes.json();
+    const curSt = statusData?.whatsapp?.status || 'disconnected';
+
+    if (curSt === 'ready' || curSt === 'authenticated') {
+      alert('WhatsApp ya está conectado. Desconectá primero.');
+      return;
+    }
+
+    // Si estaba en modo QR o error, parar primero para empezar modo teléfono
+    if (curSt === 'qr_pending' || curSt === 'error') {
+      await fetch('/api/messaging/whatsapp/stop', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('oc_token') || '') }
+      });
+      await new Promise(r => setTimeout(r, 1000));
+    }
+
+    // Arrancar en modo teléfono (el backend pasa el número al evento qr)
+    if (btn) btn.textContent = 'Cargando Chromium...';
+    const startRes = await fetch('/api/messaging/whatsapp/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('oc_token') || '') },
+      body: JSON.stringify({ phone: phone })
+    });
+    await startRes.json();
+
+    if (btn) btn.textContent = 'Esperando código...';
+    if (statusTxt) statusTxt.textContent = 'Generando código de vinculación...';
+
+    // El poller va a detectar el pairingCode y mostrarlo automáticamente
+    startWaQrPoller();
+  } catch (e) {
+    alert('Error: ' + e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Obtener código'; }
+  }
+}
+
+async function fbStart() {
+  const email = (qs('#fb-email')?.value || '').trim();
+  const pass  = (qs('#fb-pass')?.value  || '').trim();
+  if (!email || !pass) { alert('Ingresá email y contraseña de Facebook'); return; }
+
+  const btn = qs('#btn-fb-start');
+  if (btn) { btn.disabled = true; btn.textContent = 'Conectando...'; }
+  try {
+    const res = await fetch('/api/messaging/messenger/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('oc_token') || '') },
+      body: JSON.stringify({ email, password: pass })
+    });
+    const data = await res.json();
+    if (data.needs2fa) {
+      const twoFa = qs('#fb-2fa-box');
+      if (twoFa) twoFa.style.display = 'block';
+    }
+    await refreshMessagingStatus();
+  } catch (e) {
+    console.error('fbStart:', e);
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i data-lucide="log-in" style="width:14px;height:14px;"></i> Conectar'; if (typeof lucide !== 'undefined') lucide.createIcons(); }
+  }
+}
+
+async function fbStop() {
+  await fetch('/api/messaging/messenger/stop', {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('oc_token') || '') }
+  });
+  await refreshMessagingStatus();
+}
+
+async function fbRetry2FA() {
+  const res = await fetch('/api/messaging/messenger/retry2fa', {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('oc_token') || '') }
+  });
+  const data = await res.json();
+  if (!data.ok) { alert('Error: ' + (data.error || 'No se pudo verificar')); return; }
+  await refreshMessagingStatus();
+}
+
+// ─── JARVIS VOICE ASSISTANT ───────────────────────────────────────────────────
+let lastQueryWasVoice = false; // true when last query was sent via microphone
+let jarvisMode     = false;
+let jarvisRec      = null;   // wake word SpeechRecognition instance
+let jarvisCapturing = false; // true while recording a command
+let jarvisReady    = false;  // browser supports SpeechRecognition
+let jarvisVoice    = null;   // Selected masculine voice
+const WAKE_WORDS   = ['hey jarvis', 'oye jarvis', 'jarvis'];
+
+const isIOS = () => {
+  return [
+    'iPad Simulator', 'iPhone Simulator', 'iPod Simulator', 'iPad', 'iPhone', 'iPod'
+  ].includes(navigator.platform) || (navigator.userAgent.includes("Mac") && "ontouchend" in document);
+};
+
+function updateJarvisVoice() {
+  if (!window.speechSynthesis) return;
+  const voices = window.speechSynthesis.getVoices();
+  if (voices.length === 0) {
+    console.log("🔊 Esperando a que el navegador cargue las voces...");
+    return;
+  }
+  
+  // Buscar voces masculinas en español — ordenadas de más grave a más neutral
+  // iOS/Safari: Jorge, Juan, Diego, Jordi
+  const preferred = [
+    'alvaro', 'raul', 'carlos', 'antonio', 'hector', 'andrés', 'andres',
+    'jorge', 'juan', 'diego', 'jordi',
+    'pablo', 'david', 'microsoft helio', 'google español', 'espíritu', 'enrique', 'miguel',
+    'microsoft raul', 'google castilian spanish male', 'spanish (argentina) male'
+  ];
+  
+  const esVoices = voices.filter(v => v.lang.startsWith('es'));
+  if (esVoices.length === 0) {
+    // Si no hay español, intentar inglés o cualquiera para no quedar mudo (fallback total)
+    jarvisVoice = voices.find(v => v.default) || voices[0];
+    console.log("⚠️ No se encontraron voces en español. Usando:", jarvisVoice.name);
+    return;
+  }
+
+  // 1. Buscar coincidencia exacta por nombre preferido (masculinas)
+  for (const name of preferred) {
+    const found = esVoices.find(v => v.name.toLowerCase().includes(name));
+    if (found) {
+      jarvisVoice = found;
+      console.log("🤖 JARVIS Voice selected (Preferred):", found.name);
+      return;
+    }
+  }
+
+  // 2. Heurística para evitar voces femeninas conocidas si no hay preferred
+  const femaleKeywords = ['helena', 'sabina', 'zira', 'laura', 'monica', 'elsa', 'hilda', 'susan', 'stella', 'paulina', 'carmen', 'rosa', 'maria', 'isabela', 'valentina', 'lucia'];
+  const maleFallback = esVoices.find(v => !femaleKeywords.some(f => v.name.toLowerCase().includes(f)));
+  
+  jarvisVoice = maleFallback || esVoices[0];
+  console.log("🤖 JARVIS Voice selected (Fallback):", jarvisVoice.name);
+}
+
+// Cargar voces al inicio y cuando cambian
+if (window.speechSynthesis) {
+  if (speechSynthesis.onvoiceschanged !== undefined) {
+    speechSynthesis.onvoiceschanged = updateJarvisVoice;
+  }
+  updateJarvisVoice();
+  // Retry: algunos navegadores tardan en poblar la lista
+  setTimeout(updateJarvisVoice, 500);
+  setTimeout(updateJarvisVoice, 1500);
+}
+
+// Chrome bug: speechSynthesis se pausa solo si la página lleva un rato abierta
+setInterval(() => {
+  if (window.speechSynthesis && window.speechSynthesis.speaking) {
+    window.speechSynthesis.pause();
+    window.speechSynthesis.resume();
+  }
+}, 10000);
+
+function initJarvis() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return; // not supported — buttons stay hidden
+  jarvisReady = true;
+  const toggleBtn = qs('#btn-jarvis-toggle');
+  if (toggleBtn) toggleBtn.style.display = 'flex';
+}
+
+function toggleJarvisMode() {
+  if (!jarvisReady) {
+    addMessage('Tu navegador no soporta reconocimiento de voz. Usá Chrome o Edge.', 'system');
+    return;
+  }
+  jarvisMode = !jarvisMode;
+  const btn = qs('#btn-jarvis-toggle');
+  if (jarvisMode) {
+    btn.classList.add('jarvis-on');
+    btn.title = 'JARVIS activo — clic para desactivar';
+    jarvisBadge('wake', 'JARVIS escuchando...');
+    startKeepAlive();
+    startWakeListener();
+  } else {
+    btn.classList.remove('jarvis-on');
+    btn.title = 'Activar JARVIS (wake word)';
+    stopWakeListener();
+    stopKeepAlive();
+    jarvisBadgeHide();
+  }
+}
+
+function startWakeListener() {
+  if (!jarvisReady || !jarvisMode || jarvisCapturing) return;
+  try {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    jarvisRec = new SR();
+    
+    // iOS Safari no soporta continuous: true correctamente y puede congelar la UI
+    jarvisRec.continuous = !isIOS(); 
+    jarvisRec.interimResults = true;
+    jarvisRec.lang = 'es-AR';
+
+    jarvisRec.onresult = (e) => {
+      if (jarvisCapturing) return;
+      const full = Array.from(e.results).map(r => r[0].transcript.toLowerCase()).join(' ');
+      for (const w of WAKE_WORDS) {
+        if (full.includes(w)) {
+          stopWakeListener();
+          captureCommand();
+          break;
+        }
+      }
+    };
+
+    jarvisRec.onend = () => {
+      jarvisRec = null;
+      if (jarvisMode && !jarvisCapturing) {
+        // Delay más largo en iOS para evitar bloqueos por reinicio rápido
+        setTimeout(() => startWakeListener(), isIOS() ? 1000 : 400);
+      }
+    };
+
+    jarvisRec.onerror = (e) => {
+      console.warn("🎙️ WakeListener error:", e.error);
+      jarvisRec = null;
+      if (e.error === 'no-speech') return;
+      if (jarvisMode && !jarvisCapturing) {
+        setTimeout(() => startWakeListener(), isIOS() ? 2000 : 1200);
+      }
+    };
+
+    jarvisRec.start();
+  } catch (err) {
+    console.error("❌ Error iniciando WakeListener:", err);
+    jarvisReady = false;
+  }
+}
+
+function stopWakeListener() {
+  if (jarvisRec) { try { jarvisRec.stop(); } catch(e) {} jarvisRec = null; }
+}
+
+function captureCommand() {
+  jarvisCapturing = true;
+  jarvisBadge('cmd', 'Te escucho...');
+  speakJarvis('Dime');
+
+  try {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const rec = new SR();
+    rec.continuous = false;
+    rec.interimResults = false;
+    rec.lang = 'es-AR';
+
+    const timeout = setTimeout(() => { try { rec.stop(); } catch(e) {} }, 8000);
+
+    rec.onresult = (e) => {
+      clearTimeout(timeout);
+      const cmd = e.results[0][0].transcript.trim();
+      if (cmd) {
+        if (!qs('#panel-chat').classList.contains('active')) switchPanel('chat');
+        lastQueryWasVoice = true;
+        qs('#chat-input').value = cmd;
+        sendChatMessage();
+      }
+    };
+
+    const done = () => {
+      clearTimeout(timeout);
+      jarvisCapturing = false;
+      if (jarvisMode) { 
+        jarvisBadge('wake', 'JARVIS escuchando...'); 
+        setTimeout(() => startWakeListener(), 500); 
+      }
+      else jarvisBadgeHide();
+    };
+    rec.onend = done;
+    rec.onerror = (e) => { console.warn("🎙️ Capture error:", e.error); done(); };
+
+    rec.start();
+  } catch (err) {
+    console.error("❌ Error en captureCommand:", err);
+    jarvisCapturing = false;
+    if (jarvisMode) startWakeListener();
+  }
+}
+
+// ── Manual mic button ──
+let manualRec = null;
+function toggleManualMic() {
+  if (!jarvisReady) {
+    addMessage('Tu navegador no soporta reconocimiento de voz. Usá Chrome o Edge.', 'system');
+    return;
+  }
+  const btn = qs('#btn-mic');
+  if (manualRec) {
+    try { manualRec.stop(); } catch(e) {}
+    manualRec = null;
+    btn.classList.remove('listening');
+    return;
+  }
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  manualRec = new SR();
+  manualRec.continuous = false;
+  manualRec.interimResults = false;
+  manualRec.lang = 'es-AR';
+  btn.classList.add('listening');
+
+  manualRec.onresult = (e) => {
+    const text = e.results[0][0].transcript.trim();
+    if (text) { lastQueryWasVoice = true; qs('#chat-input').value = text; sendChatMessage(); }
+  };
+  const stopManual = () => { btn.classList.remove('listening'); manualRec = null; };
+  manualRec.onend = stopManual;
+  manualRec.onerror = stopManual;
+  try { manualRec.start(); } catch(e) { stopManual(); }
+}
+
+// ── Background keepalive — audio silencioso para evitar suspensión (Android) ──
+let _keepAliveCtx = null;
+let _keepAliveSrc = null;
+function startKeepAlive() {
+  if (_keepAliveCtx) return;
+  try {
+    _keepAliveCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const buf = _keepAliveCtx.createBuffer(1, _keepAliveCtx.sampleRate, _keepAliveCtx.sampleRate);
+    _keepAliveSrc = _keepAliveCtx.createBufferSource();
+    _keepAliveSrc.buffer = buf;
+    _keepAliveSrc.loop = true;
+    _keepAliveSrc.connect(_keepAliveCtx.destination);
+    _keepAliveSrc.start();
+  } catch(e) {}
+}
+function stopKeepAlive() {
+  try { _keepAliveSrc && _keepAliveSrc.stop(); } catch(e) {}
+  try { _keepAliveCtx && _keepAliveCtx.close(); } catch(e) {}
+  _keepAliveSrc = null;
+  _keepAliveCtx = null;
+}
+
+// ── Notificación de respuesta JARVIS ──
+function jarvisNotify(text) {
+  const clean = text
+    .replace(/```[\s\S]*?```/g, '[código]')
+    .replace(/`[^`]+`/g, '')
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/\*(.+?)\*/g, '$1')
+    .replace(/#+\s/g, '')
+    .replace(/\[(.+?)\]\(.+?\)/g, '$1')
+    .replace(/\n{2,}/g, ' ')
+    .replace(/\n/g, ' ')
+    .trim()
+    .slice(0, 200);
+  if (clean) ccNotify('🤖 JARVIS', clean, 'jarvis-response');
+}
+
+// ── TTS ──
+function _doSpeak(text, rate, pitch) {
+  if (!window.speechSynthesis) return;
+  if (!text) return;
+  logDebug("TTS: Intentando hablar... " + text.slice(0, 20));
+
+  if (!jarvisVoice) updateJarvisVoice();
+  window.speechSynthesis.cancel();
+  
+  // Extra help for Safari: try to resume just before speaking
+  if (window.speechSynthesis.paused) window.speechSynthesis.resume();
+
+  setTimeout(() => {
+    try {
+      window.speechSynthesis.resume();
+      if (!jarvisVoice) updateJarvisVoice();
+
+      const utt = new SpeechSynthesisUtterance(text);
+      if (jarvisVoice) {
+        utt.voice = jarvisVoice;
+        utt.lang = jarvisVoice.lang;
+      } else {
+        utt.lang = 'es-AR';
+      }
+
+      utt.rate = rate;
+      utt.pitch = pitch;
+      utt.volume = 1.0;
+
+      utt.onstart = () => logDebug("🗣️ JARVIS hablando...");
+      utt.onerror = (e) => {
+        logDebug("🔇 TTS Error: " + e.error);
+        if (e.error !== 'interrupted' && e.error !== 'canceled') {
+           window.speechSynthesis.cancel();
+           window.speechSynthesis.resume();
+        }
+      };
+      
+      window.speechSynthesis.speak(utt);
+    } catch (err) {
+      logDebug("TTS Fatal Error: " + err.message);
+    }
+  }, 100);
+}
+
+function speakJarvis(text) {
+  if (!window.speechSynthesis || !jarvisMode) return;
+  // Jarvis: tono formal, un poco más grave y pausado
+  _doSpeak(text, 0.9, 0.5);
+}
+
+function speakResponse(text) {
+  if (!window.speechSynthesis || (!jarvisMode && !lastQueryWasVoice)) return;
+  
+  // Limpiar texto para lectura
+  const clean = text
+    .replace(/```[\s\S]*?```/g, 'Aquí tienes el código.')
+    .replace(/`[^`]+`/g, '')
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/\*(.+?)\*/g, '$1')
+    .replace(/#+\s/g, '')
+    .replace(/\[(.+?)\]\(.+?\)/g, '$1')
+    .replace(/\n{2,}/g, '. ')
+    .replace(/\n/g, ' ')
+    .trim();
+
+  if (clean.length === 0) return;
+
+  if (jarvisMode) {
+    speakJarvis(clean);
+  } else {
+    lastQueryWasVoice = false;
+    _doSpeak(clean.slice(0, 500), 0.9, 0.55);
+  }
+}
+
+// ── Badge helpers ──
+function jarvisBadge(mode, text) {
+  const b = qs('#jarvis-badge');
+  b.className = 'active' + (mode === 'cmd' ? ' cmd' : '');
+  qs('#jarvis-badge-text').textContent = text;
+}
+function jarvisBadgeHide() { qs('#jarvis-badge').className = ''; }
+
 // ─── BOOT ─────────────────────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => { init(); setupViewportFix(); });
+document.addEventListener('DOMContentLoaded', () => { 
+  init(); 
+  setupViewportFix(); 
+  
+  // iOS AUDIO UNLOCKER: Safari requiere al menos una interacción para habilitar TTS
+  const unlockAudio = () => {
+    logDebug("🔊 Intentando desbloquear audio...");
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+      const utt = new SpeechSynthesisUtterance(' ');
+      utt.volume = 0;
+      window.speechSynthesis.speak(utt);
+    }
+    // Forzar AudioContext
+    if (!_keepAliveCtx) startKeepAlive();
+    else if (_keepAliveCtx.state === 'suspended') _keepAliveCtx.resume();
+    
+    // Play a tiny silent buffer via Audio API (more effective in PWA)
+    try {
+      const ctx = _keepAliveCtx || new (window.AudioContext || window.webkitAudioContext)();
+      const buffer = ctx.createBuffer(1, 1, 22050);
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(ctx.destination);
+      source.start(0);
+      logDebug("✅ Audio Context Blessed");
+    } catch(e) { logDebug("⚠️ Audio Blessing Failed: " + e.message); }
+
+    document.removeEventListener('click', unlockAudio);
+    document.removeEventListener('touchstart', unlockAudio);
+  };
+  document.addEventListener('click', unlockAudio);
+  document.addEventListener('touchstart', unlockAudio);
+});
 </script>
+  <div id="debug-console"></div>
 </body>
 </html>

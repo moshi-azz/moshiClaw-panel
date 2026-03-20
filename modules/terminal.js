@@ -99,7 +99,7 @@ function handleWebSocket(ws, req, authUser) {
 function executeCommand(cmd, timeout = 30000) {
   return new Promise((resolve) => {
     const { exec } = require('child_process');
-    exec(cmd, { timeout, maxBuffer: 1024 * 512 }, (err, stdout, stderr) => {
+    exec(cmd, { timeout, maxBuffer: 1024 * 1024 * 10 }, (err, stdout, stderr) => {
       resolve({
         stdout: stdout || '',
         stderr: stderr || '',

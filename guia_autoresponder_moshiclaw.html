@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MoshiClaw Auto-Responder — Guía de Configuración</title>
+<style>
+  :root {
+    --blue: #1F4E79;
+    --blue-mid: #2E75B6;
+    --blue-light: #DEEAF1;
+    --green: #375623;
+    --green-light: #E2EFDA;
+    --orange: #C55A11;
+    --orange-light: #FCE4D6;
+    --yellow-light: #FFF2CC;
+    --gray: #595959;
+    --gray-light: #F2F2F2;
+    --white: #FFFFFF;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; color: #333; background: #f5f7fa; }
+
+  .hero {
+    background: linear-gradient(135deg, var(--blue), var(--blue-mid));
+    color: white; padding: 40px 32px 32px;
+    text-align: center;
+  }
+  .hero h1 { font-size: 28px; margin-bottom: 8px; }
+  .hero p { font-size: 15px; opacity: 0.9; max-width: 640px; margin: 0 auto; }
+
+  .container { max-width: 860px; margin: 0 auto; padding: 32px 20px 60px; }
+
+  .phase {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    margin-bottom: 28px;
+    overflow: hidden;
+  }
+  .phase-header {
+    display: flex; align-items: center; gap: 14px;
+    padding: 18px 24px;
+    background: var(--blue);
+    color: white;
+  }
+  .phase-header.green  { background: #375623; }
+  .phase-header.orange { background: #C55A11; }
+  .phase-header.purple { background: #5A3574; }
+  .phase-number {
+    background: rgba(255,255,255,0.25);
+    border-radius: 50%;
+    width: 36px; height: 36px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: bold; font-size: 16px; flex-shrink: 0;
+  }
+  .phase-header h2 { font-size: 17px; }
+  .phase-header small { font-size: 12px; opacity: 0.85; display: block; margin-top: 2px; }
+
+  .phase-body { padding: 24px; }
+
+  .step {
+    display: flex; gap: 16px;
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #eee;
+  }
+  .step:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+  .step-num {
+    background: var(--blue-light);
+    color: var(--blue);
+    font-weight: bold;
+    border-radius: 50%;
+    width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; font-size: 13px;
+  }
+  .step-num.green  { background: var(--green-light); color: var(--green); }
+  .step-num.orange { background: var(--orange-light); color: var(--orange); }
+  .step-num.purple { background: #EDE0F5; color: #5A3574; }
+
+  .step-content h3 { font-size: 14px; color: var(--blue); margin-bottom: 6px; }
+  .step-content h3.green  { color: var(--green); }
+  .step-content h3.orange { color: var(--orange); }
+  .step-content h3.purple { color: #5A3574; }
+  .step-content p  { font-size: 13px; color: #555; line-height: 1.6; }
+  .step-content ul { font-size: 13px; color: #555; line-height: 1.7; padding-left: 18px; margin-top: 4px; }
+
+  .tip {
+    background: var(--yellow-light);
+    border-left: 4px solid #F0C040;
+    border-radius: 6px;
+    padding: 12px 16px;
+    font-size: 13px;
+    margin-top: 12px;
+    color: #5a4a00;
+  }
+  .info {
+    background: var(--blue-light);
+    border-left: 4px solid var(--blue-mid);
+    border-radius: 6px;
+    padding: 12px 16px;
+    font-size: 13px;
+    margin-top: 12px;
+    color: #1F4E79;
+  }
+  .success {
+    background: var(--green-light);
+    border-left: 4px solid #375623;
+    border-radius: 6px;
+    padding: 12px 16px;
+    font-size: 13px;
+    margin-top: 12px;
+    color: #375623;
+  }
+
+  code {
+    background: #f0f0f0;
+    border-radius: 4px;
+    padding: 2px 7px;
+    font-family: monospace;
+    font-size: 12px;
+    color: #c0392b;
+  }
+
+  .code-block {
+    background: #1e1e1e;
+    color: #d4d4d4;
+    border-radius: 8px;
+    padding: 16px;
+    font-family: monospace;
+    font-size: 12px;
+    line-height: 1.6;
+    margin-top: 10px;
+    overflow-x: auto;
+  }
+  .code-block .comment { color: #6A9955; }
+  .code-block .key     { color: #9CDCFE; }
+  .code-block .val     { color: #CE9178; }
+  .code-block .kw      { color: #569CD6; }
+
+  .badge {
+    display: inline-block;
+    background: var(--blue-mid);
+    color: white;
+    border-radius: 20px;
+    padding: 2px 10px;
+    font-size: 11px;
+    font-weight: bold;
+    margin-left: 8px;
+    vertical-align: middle;
+  }
+  .badge.free    { background: #375623; }
+  .badge.paid    { background: #C55A11; }
+  .badge.moshi   { background: #5A3574; }
+
+  .link-btn {
+    display: inline-block;
+    background: var(--blue-mid);
+    color: white !important;
+    text-decoration: none;
+    border-radius: 6px;
+    padding: 7px 16px;
+    font-size: 13px;
+    font-weight: bold;
+    margin-top: 8px;
+  }
+  .link-btn:hover { background: var(--blue); }
+  .link-btn.green  { background: #375623; }
+  .link-btn.orange { background: #C55A11; }
+
+  .arch-diagram {
+    background: #1e1e1e;
+    border-radius: 12px;
+    padding: 24px;
+    font-family: monospace;
+    font-size: 13px;
+    color: #d4d4d4;
+    line-height: 2;
+    margin: 16px 0;
+  }
+  .arch-diagram .arrow { color: #569CD6; }
+  .arch-diagram .box   { color: #4EC9B0; font-weight: bold; }
+  .arch-diagram .label { color: #9CDCFE; }
+  .arch-diagram .note  { color: #6A9955; font-size: 11px; }
+
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 12px;
+  }
+  .col-box {
+    background: var(--gray-light);
+    border-radius: 8px;
+    padding: 14px;
+    font-size: 13px;
+  }
+  .col-box h4 { color: var(--blue); margin-bottom: 8px; font-size: 13px; }
+
+  @media (max-width: 600px) {
+    .two-col { grid-template-columns: 1fr; }
+    .hero h1 { font-size: 22px; }
+  }
+
+  .footer {
+    text-align: center;
+    font-size: 12px;
+    color: #aaa;
+    margin-top: 40px;
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>🤖 MoshiClaw Auto-Responder</h1>
+  <p>Guía completa para automatizar respuestas en WhatsApp Business y Facebook Messenger con IA, controlada desde tu chat.</p>
+</div>
+
+<div class="container">
+
+  <!-- ARQUITECTURA -->
+  <div class="phase">
+    <div class="phase-header">
+      <div class="phase-number">🏗</div>
+      <div><h2>Cómo funciona el sistema</h2><small>Visión general de la arquitectura</small></div>
+    </div>
+    <div class="phase-body">
+      <div class="arch-diagram">
+<span class="box">[WhatsApp Business]</span>  <span class="arrow">──→</span>  <span class="box">[n8n Workflow]</span>  <span class="arrow">──→</span>  <span class="box">[Claude IA]</span><br>
+<span class="box">[Facebook Messenger]</span>  <span class="arrow">──→</span>       <span class="label">│</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="label">├── Lee tu Excel de stock</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="label">├── Verifica parámetros (MoshiClaw)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="label">├── Genera respuesta con IA</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="label">└── AUTO: envía / SEMI: te avisa</span><br><br>
+<span class="box">[MoshiClaw]</span>  <span class="arrow">←──→</span>  <span class="label">Control total en tiempo real</span><br>
+<span class="note">  • Activar/pausar • Cambiar parámetros • Aprobar respuestas • Bloquear contactos • Actualizar stock</span>
+      </div>
+      <div class="tip">💡 <strong>Todo empieza desde tu chat con MoshiClaw.</strong> Podés decirle "pausá el auto-responder", "no respondas a este número", o "actualizá el precio del iPhone" — y lo hace al instante.</div>
+    </div>
+  </div>
+
+  <!-- FASE 1: META DEVELOPER -->
+  <div class="phase">
+    <div class="phase-header">
+      <div class="phase-number">1</div>
+      <div><h2>Configurar Meta for Developers</h2><small>WhatsApp Business API + Facebook Messenger API — Gratis para empezar</small></div>
+    </div>
+    <div class="phase-body">
+
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <h3>Crear cuenta en Meta for Developers</h3>
+          <p>Andá a <a href="https://developers.facebook.com" target="_blank">developers.facebook.com</a> y creá una cuenta de desarrollador con tu usuario de Facebook (el mismo que usás para tu Marketplace).</p>
+          <a class="link-btn" href="https://developers.facebook.com" target="_blank">Ir a Meta Developers →</a>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <h3>Crear una App de tipo "Business"</h3>
+          <p>En el panel, hacé clic en <strong>Create App</strong> → elegí tipo <strong>Business</strong> → dale un nombre (ej: "MoshiClaw Bot"). Esto crea el contenedor para todas las APIs.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <h3>Activar WhatsApp Business API</h3>
+          <ul>
+            <li>Dentro de tu App, buscá el producto <strong>WhatsApp</strong> y hacé clic en <strong>Set Up</strong></li>
+            <li>Creá o vinculá tu <strong>WhatsApp Business Account (WABA)</strong></li>
+            <li>Agregá tu número de WhatsApp Business para verificarlo</li>
+            <li>Copiá el <strong>Phone Number ID</strong> y el <strong>Access Token permanente</strong> — los vas a necesitar para n8n</li>
+          </ul>
+          <div class="tip">📱 La API de WhatsApp es gratuita para las primeras 1.000 conversaciones por mes iniciadas por clientes. Perfecto para un negocio en Marketplace.</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <h3>Activar Messenger API (para Facebook Marketplace)</h3>
+          <ul>
+            <li>En tu App, agregá el producto <strong>Messenger</strong></li>
+            <li>Conectá tu <strong>Página de Facebook</strong> (la del negocio en Marketplace)</li>
+            <li>Generá un <strong>Page Access Token</strong> permanente</li>
+            <li>Anotá el <strong>Page ID</strong> de tu página</li>
+          </ul>
+          <div class="info">ℹ️ Si tu negocio en Marketplace está asociado a tu perfil personal (no a una Página), vas a necesitar crear una Página de Facebook para el negocio — es gratuito y muy sencillo.</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-content">
+          <h3>Guardar las credenciales</h3>
+          <p>Anotá en un lugar seguro:</p>
+          <ul>
+            <li>✅ <strong>WhatsApp:</strong> Phone Number ID + Permanent Access Token + WABA ID</li>
+            <li>✅ <strong>Messenger:</strong> Page Access Token + Page ID + App Secret</li>
+          </ul>
+          <div class="success">✅ Con esto tenés las credenciales necesarias. El siguiente paso es configurar n8n para usarlas.</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- FASE 2: N8N -->
+  <div class="phase">
+    <div class="phase-header green">
+      <div class="phase-number">2</div>
+      <div><h2>Configurar n8n</h2><small>El motor de automatización que conecta todo</small></div>
+    </div>
+    <div class="phase-body">
+
+      <div class="two-col">
+        <div class="col-box">
+          <h4>☁️ Opción A: n8n Cloud <span class="badge">Recomendada</span></h4>
+          <p>Registrarse en <a href="https://n8n.io" target="_blank">n8n.io</a>. Tiene prueba gratuita de 14 días, luego desde ~$20/mes. No requiere instalar nada. Ideal para empezar rápido.</p>
+        </div>
+        <div class="col-box">
+          <h4>🖥 Opción B: n8n Self-hosted <span class="badge free">Gratis</span></h4>
+          <p>Instalar en tu propia computadora o servidor. Completamente gratuito. Requiere que la PC esté encendida para que funcione. Ideal si querés control total.</p>
+        </div>
+      </div>
+
+      <div class="step" style="margin-top:20px">
+        <div class="step-num green">1</div>
+        <div class="step-content">
+          <h3 class="green">Conectar n8n con MoshiClaw</h3>
+          <p>Una vez que tengas tu instancia de n8n, necesitás conectarla a MoshiClaw. Para eso:</p>
+          <ul>
+            <li>En n8n, andá a <strong>Settings → API → Create API Key</strong></li>
+            <li>Copiá la URL de tu instancia (ej: <code>https://tuapp.app.n8n.cloud</code>) y la API Key</li>
+            <li>Decile a MoshiClaw: <em>"Conectá mi n8n con esta URL y esta API key"</em></li>
+          </ul>
+          <div class="tip">💡 Después de conectar n8n, MoshiClaw puede activar, pausar y ejecutar workflows directamente desde el chat.</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num green">2</div>
+        <div class="step-content">
+          <h3 class="green">Importar los workflows de MoshiClaw</h3>
+          <p>MoshiClaw te va a crear y subir automáticamente los workflows necesarios una vez que esté conectado a n8n. Los workflows incluyen:</p>
+          <ul>
+            <li><strong>WhatsApp Receiver:</strong> escucha mensajes entrantes de WhatsApp</li>
+            <li><strong>Messenger Receiver:</strong> escucha mensajes de tu página de Facebook</li>
+            <li><strong>Stock Checker:</strong> lee tu Excel/Sheets para verificar disponibilidad</li>
+            <li><strong>AI Responder:</strong> genera la respuesta usando Claude IA</li>
+            <li><strong>Mode Controller:</strong> decide si responder auto o pedir aprobación</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num green">3</div>
+        <div class="step-content">
+          <h3 class="green">Configurar las credenciales en n8n</h3>
+          <p>En n8n, ir a <strong>Credentials → Add Credential</strong> y agregar:</p>
+          <ul>
+            <li><strong>WhatsApp Business Cloud API</strong> → pegar el Access Token y Phone Number ID</li>
+            <li><strong>Facebook Graph API</strong> → pegar el Page Access Token</li>
+            <li><strong>Anthropic API</strong> → pegar tu API key de Claude (o usar la integración nativa)</li>
+            <li><strong>Google Sheets</strong> (opcional) → para leer el stock en tiempo real</li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- FASE 3: STOCK -->
+  <div class="phase">
+    <div class="phase-header orange">
+      <div class="phase-number">3</div>
+      <div><h2>Configurar el Stock</h2><small>Ya tenés el Excel listo — también funciona con Google Sheets</small></div>
+    </div>
+    <div class="phase-body">
+
+      <div class="step">
+        <div class="step-num orange">1</div>
+        <div class="step-content">
+          <h3 class="orange">El archivo Excel ya está creado</h3>
+          <p>Encontrás <code>stock_moshiclaw.xlsx</code> en tu carpeta. Tiene 3 hojas:</p>
+          <ul>
+            <li><strong>STOCK:</strong> tus productos, precios, stock actual, y configuración por producto</li>
+            <li><strong>PARÁMETROS IA:</strong> comportamiento global del bot (modo, mensajes, horarios, bloqueos)</li>
+            <li><strong>REGISTRO MENSAJES:</strong> historial de todos los mensajes gestionados por la IA</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num orange">2</div>
+        <div class="step-content">
+          <h3 class="orange">Columnas clave en la hoja STOCK</h3>
+          <ul>
+            <li><strong>RESPONDER MENSAJES:</strong> SÍ/NO — si la IA responde consultas sobre ese producto</li>
+            <li><strong>MODO RESPUESTA:</strong> AUTO (envía sola) / SEMI (te pide aprobación) / PAUSADO</li>
+            <li><strong>PRECIO MÍNIMO:</strong> la IA nunca va a comprometer un precio por debajo de este valor</li>
+            <li><strong>DESCRIPCIÓN (para la IA):</strong> texto que la IA usa para describir el producto al cliente</li>
+          </ul>
+          <div class="tip">💡 Si el stock de un producto llega a 0, la IA automáticamente deja de responder sobre ese artículo (o avisa que no hay, según la configuración).</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num orange">3</div>
+        <div class="step-content">
+          <h3 class="orange">Opción Google Sheets (actualización en tiempo real)</h3>
+          <p>Si subís el Excel a Google Sheets, n8n puede leer los datos en tiempo real sin que tengas que subir archivos. Ventajas:</p>
+          <ul>
+            <li>Editás el stock desde el teléfono y la IA lo ve al instante</li>
+            <li>Podés compartirlo con empleados para que actualicen precios</li>
+            <li>MoshiClaw puede actualizar el stock directamente cuando lo pedís</li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- FASE 4: MOSHICLAW -->
+  <div class="phase">
+    <div class="phase-header purple">
+      <div class="phase-number">4</div>
+      <div><h2>Controlar todo desde MoshiClaw</h2><small>Una vez configurado, todo se maneja desde tu chat</small></div>
+    </div>
+    <div class="phase-body">
+
+      <div class="step">
+        <div class="step-num purple">1</div>
+        <div class="step-content">
+          <h3 class="purple">Comandos que podés darle a MoshiClaw</h3>
+          <ul>
+            <li>🟢 <em>"Activá el auto-responder de WhatsApp"</em></li>
+            <li>🔴 <em>"Pausá todo por hoy"</em></li>
+            <li>🚫 <em>"No le respondas más al número +54 11 XXXX XXXX"</em></li>
+            <li>📦 <em>"Actualizá el stock del iPhone 14 a 5 unidades"</em></li>
+            <li>💰 <em>"Cambiá el precio del Galaxy S23 a $580.000"</em></li>
+            <li>📋 <em>"Mostrame los mensajes que están esperando aprobación"</em></li>
+            <li>✅ <em>"Aprobá todas las respuestas pendientes"</em></li>
+            <li>⚙️ <em>"Cambiá el modo de los AirPods a AUTO"</em></li>
+            <li>📊 <em>"¿Cuántos mensajes respondió la IA hoy?"</em></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num purple">2</div>
+        <div class="step-content">
+          <h3 class="purple">Parámetros configurables en tiempo real</h3>
+          <ul>
+            <li><strong>Modo global:</strong> AUTO / SEMI / PAUSADO — para todo el sistema</li>
+            <li><strong>Por producto:</strong> cada artículo tiene su propio modo</li>
+            <li><strong>Lista de bloqueos:</strong> números o nombres que la IA ignora</li>
+            <li><strong>Reglas de precio:</strong> umbrales mínimos y comportamiento ante ofertas</li>
+            <li><strong>Horario de atención:</strong> mensajes automáticos fuera de horario</li>
+          </ul>
+          <div class="success">✅ <strong>Todo esto se configura hablando con MoshiClaw.</strong> No necesitás tocar código ni entrar a n8n cada vez.</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- RESUMEN -->
+  <div class="phase">
+    <div class="phase-header">
+      <div class="phase-number">📋</div>
+      <div><h2>Checklist de configuración</h2><small>Seguí estos pasos en orden</small></div>
+    </div>
+    <div class="phase-body">
+      <ul style="font-size:14px; line-height:2.2; color:#333; padding-left: 20px;">
+        <li>☐ <strong>Meta Developers:</strong> Crear App → Activar WhatsApp API → Activar Messenger API → Copiar credenciales</li>
+        <li>☐ <strong>n8n:</strong> Crear cuenta en n8n.io (cloud) o instalar localmente</li>
+        <li>☐ <strong>Conectar n8n a MoshiClaw</strong> con la URL y API key de tu instancia</li>
+        <li>☐ <strong>Stock:</strong> Completar el archivo <code>stock_moshiclaw.xlsx</code> con tus productos y precios reales</li>
+        <li>☐ <strong>Parámetros:</strong> Revisar y completar la hoja "PARÁMETROS IA" según tus preferencias</li>
+        <li>☐ <strong>Opcional:</strong> Subir el Excel a Google Sheets para edición en tiempo real</li>
+        <li>☐ <strong>MoshiClaw</strong> crea y sube los workflows a n8n automáticamente</li>
+        <li>☐ <strong>Probar</strong> enviando un mensaje de prueba desde otro número</li>
+      </ul>
+      <div class="info" style="margin-top:16px">📌 <strong>Próximo paso inmediato:</strong> Conectar n8n desde el conector que te apareció en MoshiClaw, y completar el Excel con tus productos reales.</div>
+    </div>
+  </div>
+
+  <div class="footer">
+    MoshiClaw Auto-Responder · Generado automáticamente · Para uso personal del negocio
+  </div>
+
+</div>
+</body>
+</html>

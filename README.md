@@ -12,7 +12,9 @@ Panel de control remoto y avanzado para tu PC Ubuntu. Accede desde el navegador 
 - **🌐 Navegador Automatizado** — Un motor de navegación basado en Puppeteer que permite a la IA interactuar con la web de forma autónoma.
 - **💻 Terminal Integrada** — Shell completo en el navegador (xterm.js + node-pty) con capacidades multitab y soporte de teclado móvil ampliado.
 - **🖥️ Escritorio Remoto** — Streaming de pantalla en tiempo real (X11 vía ffmpeg) con control de mouse y teclado.
-- **🤖 Asistente IA Avanzado** — Chat multi-modelo (Gemini 2.0, DeepSeek R1) capaz de ejecutar comandos, leer archivos, navegar por la web y generar imágenes de forma autónoma.
+- **🤖 Agente IA Autónomo** — Chat multi-modelo (Gemini 2.5, DeepSeek, Ollama local) con modo agente completo: ejecuta comandos bash, crea archivos directamente, navega la web, genera imágenes y muestra el progreso paso a paso en tiempo real. El historial de conversación (incluyendo tool calls) se persiste en disco y sobrevive reinicios del servidor.
+- **💬 Mensajería Integrada** — Conexión con WhatsApp (QR / pairing code) y Messenger vía Puppeteer. Envío y recepción de mensajes directamente desde el panel.
+- **🔁 Auto-Responder IA** — Responde mensajes de WhatsApp y Messenger automáticamente usando la IA. Tres modos: OFF, SEMI (aprobación manual) y AUTO. Configurable por plataforma y contacto.
 - **🛡️ Claude Code & Multi-Agentes** — Integración experimental de Claude Code que permite gestionar múltiples agentes simultáneos en diferentes directorios con notificaciones de estado.
 - **🌗 Temas Dinámicos** — Soporte nativo para modo Claro y Oscuro con una interfaz premium inspirada en glassmorphism.
 - **🔔 Notificaciones Push** — Alertas instantáneas si la CPU o RAM superan límites críticos o si un agente IA termina una tarea.

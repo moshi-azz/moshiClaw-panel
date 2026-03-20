@@ -155,4 +155,17 @@ async function close() {
   }
 }
 
-module.exports = { launch, navigate, screenshot, click, typeInto, getContent, evaluate, getPageInfo, close };
+/**
+ * Desplaza la página verticalmente.
+ * @param {number} deltaY - Píxeles a desplazar. Positivo = abajo, negativo = arriba.
+ */
+async function scroll(deltaY) {
+  if (!page) return;
+  try {
+    await page.evaluate((d) => window.scrollBy(0, d), deltaY);
+  } catch (e) {
+    console.error('Scroll error:', e.message);
+  }
+}
+
+module.exports = { launch, navigate, screenshot, click, typeInto, getContent, evaluate, getPageInfo, scroll, close };

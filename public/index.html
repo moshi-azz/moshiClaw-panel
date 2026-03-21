@@ -604,6 +604,117 @@
     font-family: inherit; box-shadow: inset 0 2px 4px rgba(0,0,0,0.2); transition: border-color 0.2s;
   }
   #chat-input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-glow); }
+
+  /* ── SKILLS ─────────────────────────────────────────────────── */
+  #skills-modal {
+    display: none; position: fixed; inset: 0; z-index: 1100;
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+    align-items: center; justify-content: center;
+  }
+  #skills-modal.open { display: flex; }
+  .skills-panel {
+    background: var(--surface2-solid); border: 1px solid var(--border);
+    border-radius: 16px; width: min(540px, 96vw); max-height: 82vh;
+    display: flex; flex-direction: column; overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+  .skills-panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+  }
+  .skills-panel-header h3 { margin: 0; font-size: 17px; display: flex; align-items: center; gap: 8px; }
+  .skills-list { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+  .skill-card {
+    display: flex; align-items: center; gap: 12px; padding: 12px 14px;
+    border: 1px solid var(--border); border-radius: 10px; cursor: pointer;
+    transition: all 0.15s; background: var(--surface);
+  }
+  .skill-card:hover { border-color: var(--accent); background: var(--surface2); }
+  .skill-card.active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+  .skill-icon { font-size: 26px; flex-shrink: 0; width: 40px; text-align: center; }
+  .skill-info { flex: 1; min-width: 0; }
+  .skill-name { font-weight: 600; font-size: 14px; }
+  .skill-desc { font-size: 12px; color: var(--text-muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .skill-tags { display: flex; gap: 4px; margin-top: 4px; flex-wrap: wrap; }
+  .skill-tag { background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 1px 7px; font-size: 10px; color: var(--text-muted); }
+  .skill-actions { display: flex; gap: 4px; flex-shrink: 0; align-items: center; }
+  .skill-activate-btn {
+    padding: 5px 12px; border-radius: 20px; border: 1px solid var(--accent);
+    background: transparent; color: var(--accent); font-size: 12px; cursor: pointer; font-weight: 600;
+    transition: all 0.15s;
+  }
+  .skill-activate-btn:hover, .skill-card.active .skill-activate-btn {
+    background: var(--accent); color: #fff;
+  }
+  .skill-del-btn {
+    width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--border);
+    background: transparent; color: var(--text-muted); cursor: pointer; font-size: 13px;
+    display: flex; align-items: center; justify-content: center; transition: all 0.15s;
+  }
+  .skill-del-btn:hover { border-color: #e05555; color: #e05555; }
+  .skills-panel-footer {
+    padding: 12px 20px; border-top: 1px solid var(--border); display: flex; gap: 8px; flex-shrink: 0;
+  }
+  .skills-empty { text-align: center; padding: 32px 16px; color: var(--text-muted); font-size: 14px; }
+  .skills-github-section {
+    padding: 10px 20px 0;
+    display: flex; gap: 8px; align-items: center;
+  }
+  .skills-github-section input {
+    flex: 1; font-size: 13px; padding: 7px 10px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--input-bg); color: var(--text-primary);
+    min-width: 0;
+  }
+  .skills-github-section input:focus { outline: none; border-color: var(--accent); }
+  .btn-install-gh {
+    white-space: nowrap; padding: 7px 12px; font-size: 13px; border-radius: 8px;
+    background: var(--accent); color: #fff; border: none; cursor: pointer; font-weight: 600;
+    opacity: 1; transition: opacity .15s;
+  }
+  .btn-install-gh:disabled { opacity: .55; cursor: not-allowed; }
+  #create-skill-modal {
+    display: none; position: fixed; inset: 0; z-index: 1200;
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+    align-items: center; justify-content: center;
+  }
+  #create-skill-modal.open { display: flex; }
+  .create-skill-panel {
+    background: var(--surface2-solid); border: 1px solid var(--border);
+    border-radius: 16px; width: min(480px, 96vw); max-height: 90vh; overflow-y: auto;
+    padding: 24px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); display: flex; flex-direction: column; gap: 14px;
+  }
+  .create-skill-panel h3 { margin: 0; font-size: 17px; }
+  .create-skill-panel label { font-size: 13px; color: var(--text-muted); display: block; margin-bottom: 4px; }
+  .create-skill-panel input, .create-skill-panel textarea {
+    width: 100%; box-sizing: border-box; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 9px 12px; color: var(--text); font-size: 14px; font-family: inherit;
+  }
+  .create-skill-panel textarea { min-height: 140px; resize: vertical; font-family: monospace; font-size: 12px; }
+  .create-skill-row { display: flex; gap: 10px; }
+  .create-skill-row > div { flex: 1; }
+  #active-skill-badge {
+    display: none; align-items: center; gap: 6px; padding: 5px 12px 0;
+    font-size: 12px;
+  }
+  #active-skill-badge.visible { display: flex; }
+  .badge-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+    border-radius: 20px; padding: 3px 10px; font-size: 12px; font-weight: 600; color: var(--accent);
+  }
+  .badge-close {
+    cursor: pointer; opacity: 0.7; font-size: 13px; line-height: 1;
+    background: none; border: none; color: inherit; padding: 0; margin-left: 2px;
+  }
+  .badge-close:hover { opacity: 1; }
+  .btn-secondary {
+    background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+    padding: 10px 16px; border-radius: 8px; font-size: 14px; cursor: pointer;
+    font-family: inherit; transition: all 0.15s;
+  }
+  .btn-secondary:hover { background: var(--surface); border-color: var(--accent); }
+
   .btn-send {
     width: 48px; height: 48px; background: var(--accent); color: #fff;
     border: none; border-radius: 50%; display: flex; align-items: center; justify-content: center;
@@ -826,6 +937,7 @@
     </div>
     <div class="header-right">
       <button class="icon-btn" id="btn-theme" title="Cambiar tema" onclick="toggleTheme()"><i data-lucide="sun"></i></button>
+      <button class="icon-btn" id="btn-skills" title="Skills (⚡)" onclick="openSkillsPanel()"><i data-lucide="zap"></i></button>
       <button class="icon-btn" id="btn-settings" title="Configuración"><i data-lucide="settings"></i></button>
       <button class="icon-btn" id="btn-logout" title="Salir"><i data-lucide="log-out"></i></button>
     </div>
@@ -986,6 +1098,14 @@
       <div class="chat-messages" id="chat-messages">
         <div class="msg system">Chat con moshiClaw activo. Configurá tu API key en ⚙️</div>
       </div>
+      <div id="active-skill-badge">
+        <div class="badge-pill">
+          <span id="active-skill-badge-icon"></span>
+          <span id="active-skill-badge-name"></span>
+          <button class="badge-close" onclick="deactivateSkill()" title="Desactivar skill">×</button>
+        </div>
+      </div>
+
       <div class="chat-input-area">
         <button id="btn-mic" class="btn-mic" onclick="toggleManualMic()" title="Hablar (clic para grabar)">
           <i data-lucide="mic" style="width:16px; height:16px;"></i>
@@ -1259,7 +1379,10 @@ const BASE_URL = window.location.origin;
 const WS_BASE = BASE_URL.replace(/^http/, 'ws');
 
 let authToken = localStorage.getItem('oc_token') || null;
-let settings = JSON.parse(localStorage.getItem('oc_settings') || '{}');
+let settings       = JSON.parse(localStorage.getItem('oc_settings') || '{}');
+let activeSkillId   = localStorage.getItem('oc_active_skill') || null;
+let activeSkillMeta = JSON.parse(localStorage.getItem('oc_active_skill_meta') || 'null');
+let _cachedSkills   = [];
 let chatHistory = JSON.parse(localStorage.getItem('oc_chat') || '[]');
 // chatSessionId persistido para que el servidor recuerde el contexto entre recargas
 let chatSessionId = localStorage.getItem('oc_session_id') || ('session_' + Date.now());
@@ -1421,6 +1544,7 @@ function init() {
   qs('#login-user').addEventListener('keydown', e => { if (e.key === 'Enter') qs('#login-pass').focus(); });
   qs('#btn-logout').addEventListener('click', logout);
   qs('#btn-settings').addEventListener('click', openSettings);
+  if (activeSkillMeta) updateSkillBadge(); // Restaurar skill badge al cargar
   qs('#btn-close-settings').addEventListener('click', closeSettings);
   qs('#btn-save-settings').addEventListener('click', saveSettings);
   
@@ -3288,13 +3412,183 @@ function sendChatMessage() {
       model: settings.model,
       apiKey: settings.apiKey,
       sessionId: chatSessionId,
-      autoExecute: autoExec || sessionAutoExec
+      autoExecute: autoExec || sessionAutoExec,
+      activeSkillId: activeSkillId || null
     }));
   } else {
     addMessage('Sin conexión al servidor.', 'system');
     qs('#btn-send-chat').disabled = false;
   }
 }
+
+// ─── SKILLS ───────────────────────────────────────────────────────────────────
+
+async function loadSkills() {
+  try {
+    const r = await fetch('/api/skills', { headers: { Authorization: 'Bearer ' + authToken } });
+    const data = await r.json();
+    _cachedSkills = data.skills || [];
+    renderSkillsList();
+  } catch (e) { console.error('Error cargando skills:', e); }
+}
+
+function renderSkillsList() {
+  const list = qs('#skills-list');
+  if (!list) return;
+  if (_cachedSkills.length === 0) {
+    list.innerHTML = '<div class="skills-empty">✨ No hay skills todavía.<br>Creá el primero con el botón de abajo.</div>';
+    return;
+  }
+  list.innerHTML = _cachedSkills.map(sk => {
+    const isActive = sk.id === activeSkillId;
+    const tags = (sk.tags||[]).map(t => `<span class="skill-tag">${t}</span>`).join('');
+    const tagsHtml = tags ? `<div class="skill-tags">${tags}</div>` : '';
+    const esc = s => (s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    return `<div class="skill-card ${isActive?'active':''}">
+      <div class="skill-icon">${sk.icon||'🧠'}</div>
+      <div class="skill-info">
+        <div class="skill-name">${sk.name}</div>
+        ${sk.description?`<div class="skill-desc">${sk.description}</div>`:''}
+        ${tagsHtml}
+      </div>
+      <div class="skill-actions">
+        <button class="skill-activate-btn" onclick="toggleSkill('${esc(sk.id)}','${esc(sk.name)}','${esc(sk.icon||'🧠')}')">
+          ${isActive ? '✓ Activo' : 'Activar'}
+        </button>
+        <button class="skill-del-btn" onclick="confirmDeleteSkill('${esc(sk.id)}','${esc(sk.name)}',event)" title="Eliminar">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openSkillsPanel() {
+  qs('#skills-modal').classList.add('open');
+  loadSkills();
+}
+function closeSkillsPanel() { qs('#skills-modal').classList.remove('open'); }
+
+function toggleSkill(id, name, icon) {
+  if (activeSkillId === id) deactivateSkill(); else activateSkill(id, name, icon);
+}
+
+function activateSkill(id, name, icon) {
+  activeSkillId   = id;
+  activeSkillMeta = { id, name, icon };
+  localStorage.setItem('oc_active_skill', id);
+  localStorage.setItem('oc_active_skill_meta', JSON.stringify(activeSkillMeta));
+  updateSkillBadge();
+  renderSkillsList();
+  closeSkillsPanel();
+}
+
+function deactivateSkill() {
+  activeSkillId = null; activeSkillMeta = null;
+  localStorage.removeItem('oc_active_skill');
+  localStorage.removeItem('oc_active_skill_meta');
+  updateSkillBadge();
+  renderSkillsList();
+}
+
+function updateSkillBadge() {
+  const badge = qs('#active-skill-badge');
+  if (!badge) return;
+  if (activeSkillMeta) {
+    qs('#active-skill-badge-icon').textContent = activeSkillMeta.icon || '🧠';
+    qs('#active-skill-badge-name').textContent = 'Skill: ' + activeSkillMeta.name;
+    badge.classList.add('visible');
+  } else {
+    badge.classList.remove('visible');
+  }
+}
+
+function openCreateSkillModal() {
+  qs('#create-skill-modal').classList.add('open');
+  setTimeout(() => qs('#new-skill-name') && qs('#new-skill-name').focus(), 120);
+}
+function closeCreateSkillModal() { qs('#create-skill-modal').classList.remove('open'); }
+
+async function saveNewSkill() {
+  const name    = qs('#new-skill-name').value.trim();
+  const icon    = qs('#new-skill-icon').value.trim() || '🧠';
+  const desc    = qs('#new-skill-desc').value.trim();
+  const tags    = qs('#new-skill-tags').value.trim();
+  const content = qs('#new-skill-content').value.trim();
+  if (!name) { qs('#new-skill-name').focus(); return; }
+  if (!content) { qs('#new-skill-content').focus(); return; }
+  try {
+    const r = await fetch('/api/skills', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + authToken },
+      body: JSON.stringify({ name, icon, description: desc, tags, content })
+    });
+    const data = await r.json();
+    if (data.success) {
+      ['#new-skill-name','#new-skill-desc','#new-skill-tags','#new-skill-content'].forEach(s => { if(qs(s)) qs(s).value=''; });
+      if (qs('#new-skill-icon')) qs('#new-skill-icon').value = '🧠';
+      closeCreateSkillModal();
+      loadSkills();
+    } else { alert('Error al guardar: ' + (data.error||'desconocido')); }
+  } catch(e) { alert('Error de red: ' + e.message); }
+}
+
+async function confirmDeleteSkill(id, name, event) {
+  event.stopPropagation();
+  if (!confirm('¿Eliminar el skill "' + name + '"?')) return;
+  try {
+    await fetch('/api/skills/' + encodeURIComponent(id), {
+      method: 'DELETE', headers: { Authorization: 'Bearer ' + authToken }
+    });
+    if (activeSkillId === id) deactivateSkill();
+    loadSkills();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function installSkillFromGitHub() {
+  const input = qs('#github-skill-url');
+  const url = (input ? input.value : '').trim();
+  if (!url) {
+    alert('Ingresá la URL del repositorio de GitHub');
+    return;
+  }
+  const btn = qs('#btn-install-github');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Instalando...'; }
+  try {
+    const res = await fetch('/api/skills/install-github', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + authToken },
+      body: JSON.stringify({ repoUrl: url }),
+    });
+    // Verificar que la respuesta sea JSON antes de parsear
+    const contentType = res.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      if (res.status === 404) {
+        alert('❌ Ruta no encontrada (404).\n\nReiniciá el servidor de MoshiClaw para cargar la nueva ruta.');
+      } else if (res.status === 401 || res.status === 403) {
+        alert('❌ Sin autorización. Recargá la página y volvé a iniciar sesión.');
+      } else {
+        alert(`❌ Respuesta inesperada del servidor (HTTP ${res.status}).\n\nReiniciá el servidor.`);
+      }
+      return;
+    }
+    const data = await res.json();
+    if (data.success) {
+      const names = (data.installed || []).map(s => `${s.icon} ${s.name}`).join(', ');
+      const skippedMsg = data.skipped && data.skipped.length ? `\n⚠️ Omitidos: ${data.skipped.length}` : '';
+      alert(`✅ ${data.installed.length} skill(s) instalado(s):\n${names}${skippedMsg}`);
+      if (input) input.value = '';
+      loadSkills();
+    } else {
+      alert('Error: ' + (data.error || 'No se pudo instalar'));
+    }
+  } catch (e) {
+    alert('Error: ' + e.message + '\n\nSi el servidor no fue reiniciado aún, hacelo ahora para cargar la nueva ruta /api/skills/install-github.');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '📦 Instalar'; }
+  }
+}
+
+// ─── FIN SKILLS ───────────────────────────────────────────────────────────────
+
 
 function clearChatHistory() {
   if (!confirm('¿Seguro que querés limpiar el historial de este chat?')) return;
@@ -4236,5 +4530,60 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
   <div id="debug-console"></div>
+
+  <!-- SKILLS MODAL -->
+  <div id="skills-modal">
+    <div class="skills-panel">
+      <div class="skills-panel-header">
+        <h3>⚡ Skills</h3>
+        <button class="icon-btn" onclick="closeSkillsPanel()" style="width:32px;height:32px;font-size:16px;">×</button>
+      </div>
+      <div class="skills-list" id="skills-list">
+        <div class="skills-empty">Cargando skills...</div>
+      </div>
+      <div class="skills-github-section">
+        <input id="github-skill-url" type="text" placeholder="https://github.com/usuario/skill-repo" autocomplete="off" />
+        <button class="btn-install-gh" id="btn-install-github" onclick="installSkillFromGitHub()">📦 Instalar</button>
+      </div>
+      <div class="skills-panel-footer">
+        <button class="btn-primary" style="flex:1;padding:10px" onclick="openCreateSkillModal()">+ Crear skill</button>
+        <button class="btn-secondary" onclick="closeSkillsPanel()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CREATE SKILL MODAL -->
+  <div id="create-skill-modal">
+    <div class="create-skill-panel">
+      <h3>✨ Nuevo Skill</h3>
+      <div class="create-skill-row">
+        <div style="flex:0 0 80px">
+          <label>Icono</label>
+          <input id="new-skill-icon" type="text" maxlength="4" placeholder="🧠" value="🧠" style="text-align:center;font-size:20px;padding:6px">
+        </div>
+        <div style="flex:1">
+          <label>Nombre *</label>
+          <input id="new-skill-name" type="text" placeholder="Ej: Experto en Excel">
+        </div>
+      </div>
+      <div>
+        <label>Descripción breve</label>
+        <input id="new-skill-desc" type="text" placeholder="Ej: Especialista en fórmulas y macros">
+      </div>
+      <div>
+        <label>Tags (separados por coma)</label>
+        <input id="new-skill-tags" type="text" placeholder="excel, datos, análisis">
+      </div>
+      <div>
+        <label>Instrucciones del SKILL.md *</label>
+        <textarea id="new-skill-content" placeholder="# Instrucciones&#10;&#10;Escribí el conocimiento experto, reglas y comportamiento esperado..."></textarea>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn-secondary" onclick="closeCreateSkillModal()">Cancelar</button>
+        <button class="btn-primary" onclick="saveNewSkill()">Guardar</button>
+      </div>
+    </div>
+  </div>
+
 </body>
 </html>

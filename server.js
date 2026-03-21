@@ -23,6 +23,7 @@ const statsHistory = require('./modules/stats_history');
 const whatsapp = require('./modules/whatsapp');
 const messenger = require('./modules/messenger');
 const autoresponder = require('./modules/autoresponder');
+const skills        = require('./modules/skills');
 
 
 const PORT = process.env.PORT || 3000;
@@ -171,7 +172,7 @@ statsHistory.init(monitoring);
 const activeAiRequests = new Map();
 
 async function handleChatMessage(ws, data, user) {
-  const { message, provider, model, apiKey, sessionId, autoExecute } = data;
+  const { message, provider, model, apiKey, sessionId, autoExecute, activeSkillId } = data;
   const sId = sessionId || user.user;
 
   if (!message || !provider || (!apiKey && provider !== 'ollama')) {
@@ -179,6 +180,7 @@ async function handleChatMessage(ws, data, user) {
     return;
   }
 
+  // El skill se lee on-demand desde ai.js cuando la IA llama read_skill()
   // Indicar que está pensando
   ws.send(JSON.stringify({ type: 'chat_thinking', sessionId: sId }));
 
@@ -193,6 +195,7 @@ async function handleChatMessage(ws, data, user) {
       message,
       sessionId: sId,
       autoExecute: !!autoExecute,
+      activeSkillId: activeSkillId || null,
       onToolCall: (toolEvent) => {
         // Verificar si la solicitud fue cancelada
         if (!activeAiRequests.has(sId)) return;
@@ -638,6 +641,50 @@ app.post('/api/messaging/unblock', authMiddleware, (req, res) => {
 app.post('/api/messaging/config', authMiddleware, (req, res) => {
   const { key, value } = req.body;
   res.json(autoresponder.setConfig(key, value));
+});
+
+// ─── SKILLS (SKILL.md ecosystem) ─────────────────────────────────────────────
+
+// Listar todos los skills
+app.get('/api/skills', authMiddleware, (req, res) => {
+  res.json({ skills: skills.listSkills() });
+});
+
+// Obtener contenido raw de un skill
+app.get('/api/skills/:id', authMiddleware, (req, res) => {
+  const content = skills.getSkillContent(req.params.id);
+  if (!content) return res.status(404).json({ error: 'Skill no encontrado' });
+  res.json({ content });
+});
+
+// Crear o actualizar un skill
+app.post('/api/skills', authMiddleware, (req, res) => {
+  const { id, name, description, icon, tags, content } = req.body;
+  if (!name) return res.status(400).json({ error: 'name es requerido' });
+  try {
+    const finalId = skills.createSkill({ id, name, description, icon, tags, content });
+    res.json({ success: true, id: finalId });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Eliminar un skill
+app.delete('/api/skills/:id', authMiddleware, (req, res) => {
+  const ok = skills.deleteSkill(req.params.id);
+  res.json({ success: ok });
+});
+
+// Instalar skill desde GitHub
+app.post('/api/skills/install-github', authMiddleware, async (req, res) => {
+  const { repoUrl } = req.body;
+  if (!repoUrl) return res.status(400).json({ error: 'repoUrl es requerido' });
+  try {
+    const result = await skills.installFromGitHub(repoUrl);
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // Health check (sin auth)

@@ -161,6 +161,12 @@ const AI_TOOLS = {
     parameters: {
       message: { type: 'string', description: 'Mensaje descriptivo del paso actual o progreso (ej: "📁 Paso 1/4: Creando estructura de carpetas del proyecto...")' }
     }
+  },
+  read_skill: {
+    description: 'Lee el contenido completo de un skill especializado. SIEMPRE llamá este tool ANTES de responder cuando el tema del usuario coincida con un skill disponible. El skill contiene conocimiento experto que mejorará significativamente tu respuesta y que no tenés por defecto.',
+    parameters: {
+      id: { type: 'string', description: 'ID del skill a leer, exactamente como aparece en la lista de skills disponibles (ej: modo-conciso, experto-en-codigo)' }
+    }
   }
 };
 
@@ -178,6 +184,16 @@ async function runTool(toolName, args, onToolCall, apiKey) {
     } catch (e) {
       return `Error leyendo archivo: ${e.message}`;
     }
+  }
+  if (toolName === 'read_skill') {
+    const skillsModule = require('./skills');
+    const sid = args.id || args.skill_id;
+    const content = skillsModule.getSkillContent(sid);
+    if (!content) {
+      const available = skillsModule.listSkills().map(s => s.id).join(', ');
+      return `Skill "${sid}" no encontrado. IDs disponibles: ${available}`;
+    }
+    return `SKILL CARGADO: ${sid}\n\n${content}\n\n---\nSeguí las instrucciones de este skill durante el resto de la conversación.`;
   }
   if (toolName === 'browser_navigate') {
     const res = await browser.navigate(args.url);
@@ -304,7 +320,8 @@ async function runTool(toolName, args, onToolCall, apiKey) {
     const validUrl = url.startsWith('http') ? url : `https://${url}`;
     return new Promise((resolve) => {
       // Necesitamos exportar DISPLAY para que abra la GUI desde el proceso background de Node
-      const cmd = `export DISPLAY=:0 && (nohup brave-browser "${validUrl}" >/dev/null 2>&1 & || nohup brave "${validUrl}" >/dev/null 2>&1 & || nohup xdg-open "${validUrl}" >/dev/null 2>&1 &)`;
+      // FIX: usar bash -c con if/elif/else para evitar "||" inválido después de "&" en /bin/sh
+      const cmd = `bash -c 'export DISPLAY=:0; if command -v brave-browser >/dev/null 2>&1; then nohup brave-browser "${validUrl}" >/dev/null 2>&1 & elif command -v brave >/dev/null 2>&1; then nohup brave "${validUrl}" >/dev/null 2>&1 & else nohup xdg-open "${validUrl}" >/dev/null 2>&1 & fi'`;
       exec(cmd, (err) => {
         if (err) resolve(`No se pudo abrir Brave: ${err.message}. URL: ${validUrl}`);
         else resolve(`✅ Brave abierto buscando: ${validUrl}`);
@@ -388,14 +405,14 @@ async function runTool(toolName, args, onToolCall, apiKey) {
 }
 
 // ─── GEMINI ───────────────────────────────────────────────────────────────────
-async function chatWithGemini(apiKey, selectedModel, message, sessionId, autoExecute, onToolCall) {
+async function chatWithGemini(apiKey, selectedModel, message, sessionId, autoExecute, onToolCall, activeSkillId = null) {
   const { GoogleGenerativeAI } = require('@google/generative-ai');
   const genAI = new GoogleGenerativeAI(apiKey);
 
   console.log('DEBUG: Usando modelo:', selectedModel || process.env.GEMINI_MODEL || 'gemini-2.0-flash-lite');
   const model = genAI.getGenerativeModel({
     model: selectedModel || process.env.GEMINI_MODEL || 'gemini-2.0-flash-lite',
-    systemInstruction: getSystemPrompt(),
+    systemInstruction: getSystemPrompt(activeSkillId),
     tools: [{
       functionDeclarations: [
         {
@@ -575,7 +592,7 @@ async function chatWithGemini(apiKey, selectedModel, message, sessionId, autoExe
 
     for (const call of calls) {
       let toolResult;
-      const isAutoTool = call.name.startsWith('browser_') || call.name === 'generate_image' || call.name.startsWith('messaging_') || call.name === 'open_in_brave' || call.name === 'play_media' || call.name === 'stop_media' || call.name === 'write_file' || call.name === 'step_update';
+      const isAutoTool = call.name.startsWith('browser_') || call.name === 'generate_image' || call.name.startsWith('messaging_') || call.name === 'open_in_brave' || call.name === 'play_media' || call.name === 'stop_media' || call.name === 'write_file' || call.name === 'step_update' || call.name === 'read_file' || call.name === 'read_skill';
       const toolId = `tc_${Date.now()}_${_toolCounter++}`;
       if (autoExecute || isAutoTool) {
         onToolCall && onToolCall({ type: 'executing', name: call.name, args: call.args, toolId });
@@ -617,7 +634,7 @@ async function chatWithGemini(apiKey, selectedModel, message, sessionId, autoExe
 }
 
 // ─── DEEPSEEK ─────────────────────────────────────────────────────────────────
-async function chatWithDeepSeek(apiKey, selectedModel, message, sessionId, autoExecute, onToolCall) {
+async function chatWithDeepSeek(apiKey, selectedModel, message, sessionId, autoExecute, onToolCall, activeSkillId = null) {
   const OpenAI = require('openai');
   const client = new OpenAI({
     apiKey,
@@ -628,7 +645,7 @@ async function chatWithDeepSeek(apiKey, selectedModel, message, sessionId, autoE
   const history = chatHistories.get(sessionId);
 
   const messages = [
-    { role: 'system', content: getSystemPrompt() },
+    { role: 'system', content: getSystemPrompt(activeSkillId) },
     ...history,
     { role: 'user', content: message }
   ];
@@ -806,7 +823,7 @@ async function chatWithDeepSeek(apiKey, selectedModel, message, sessionId, autoE
     for (const toolCall of assistantMessage.tool_calls) {
       const args = JSON.parse(toolCall.function.arguments);
       let toolResult;
-      const isAutoTool = toolCall.function.name.startsWith('browser_') || toolCall.function.name === 'generate_image' || toolCall.function.name.startsWith('messaging_') || toolCall.function.name === 'open_in_brave' || toolCall.function.name === 'play_media' || toolCall.function.name === 'stop_media' || toolCall.function.name === 'write_file' || toolCall.function.name === 'step_update';
+      const isAutoTool = toolCall.function.name.startsWith('browser_') || toolCall.function.name === 'generate_image' || toolCall.function.name.startsWith('messaging_') || toolCall.function.name === 'open_in_brave' || toolCall.function.name === 'play_media' || toolCall.function.name === 'stop_media' || toolCall.function.name === 'write_file' || toolCall.function.name === 'step_update' || toolCall.function.name === 'read_file' || toolCall.function.name === 'read_skill';
       const toolId = `tc_${Date.now()}_${_dsToolCounter++}`;
 
       if (autoExecute || isAutoTool) {
@@ -846,7 +863,7 @@ async function chatWithDeepSeek(apiKey, selectedModel, message, sessionId, autoE
 }
 
 // ─── OLLAMA (OpenAI-compatible, local) ────────────────────────────────────────
-async function chatWithOllama(selectedModel, message, sessionId, autoExecute, onToolCall) {
+async function chatWithOllama(selectedModel, message, sessionId, autoExecute, onToolCall, activeSkillId = null) {
   const OpenAI = require('openai');
   const client = new OpenAI({
     apiKey: 'ollama',                        // Ollama no valida la key
@@ -857,7 +874,7 @@ async function chatWithOllama(selectedModel, message, sessionId, autoExecute, on
   const history = chatHistories.get(sessionId);
 
   const messages = [
-    { role: 'system', content: getSystemPrompt() },
+    { role: 'system', content: getSystemPrompt(activeSkillId) },
     ...history,
     { role: 'user', content: message }
   ];
@@ -1062,7 +1079,7 @@ async function chatWithOllama(selectedModel, message, sessionId, autoExecute, on
     for (const toolCall of assistantMessage.tool_calls) {
       const args = JSON.parse(toolCall.function.arguments);
       let toolResult;
-      const isAutoTool = toolCall.function.name.startsWith('browser_') || toolCall.function.name.startsWith('messaging_') || toolCall.function.name === 'open_in_brave' || toolCall.function.name === 'play_media' || toolCall.function.name === 'stop_media' || toolCall.function.name === 'write_file' || toolCall.function.name === 'step_update';
+      const isAutoTool = toolCall.function.name.startsWith('browser_') || toolCall.function.name.startsWith('messaging_') || toolCall.function.name === 'open_in_brave' || toolCall.function.name === 'play_media' || toolCall.function.name === 'stop_media' || toolCall.function.name === 'write_file' || toolCall.function.name === 'step_update' || toolCall.function.name === 'read_file' || toolCall.function.name === 'read_skill';
       const toolId = `tc_${Date.now()}_${_ollamaToolCounter++}`;
 
       if (autoExecute || isAutoTool) {
@@ -1171,14 +1188,14 @@ function cancelToolExecution(confirmId) {
 }
 
 // ─── API PRINCIPAL ─────────────────────────────────────────────────────────────
-async function chat({ provider, apiKey, model, message, sessionId, autoExecute = false, onToolCall }) {
+async function chat({ provider, apiKey, model, message, sessionId, autoExecute = false, activeSkillId = null, onToolCall }) {
   sessionApiKeys.set(sessionId, apiKey); // Update saved key
   if (provider === 'gemini') {
-    return chatWithGemini(apiKey, model, message, sessionId, autoExecute, onToolCall);
+    return chatWithGemini(apiKey, model, message, sessionId, autoExecute, onToolCall, activeSkillId);
   } else if (provider === 'deepseek') {
-    return chatWithDeepSeek(apiKey, model, message, sessionId, autoExecute, onToolCall);
+    return chatWithDeepSeek(apiKey, model, message, sessionId, autoExecute, onToolCall, activeSkillId);
   } else if (provider === 'ollama') {
-    return chatWithOllama(model, message, sessionId, autoExecute, onToolCall);
+    return chatWithOllama(model, message, sessionId, autoExecute, onToolCall, activeSkillId);
   }
   throw new Error(`Proveedor desconocido: ${provider}`);
 }
@@ -1188,9 +1205,9 @@ function clearHistory(sessionId) {
   saveHistories(); // Persiste la eliminación en disco
 }
 
-function getSystemPrompt() {
+function getSystemPrompt(activeSkillId = null) {
   const os = require('os');
-  return `Sos moshiClaw, un agente de IA autónomo y avanzado con ACCESO TOTAL (SUDO) al sistema Linux del usuario.
+  let prompt = `Sos moshiClaw, un agente de IA autónomo y avanzado con ACCESO TOTAL (SUDO) al sistema Linux del usuario.
 Sistema: Ubuntu Linux. Hostname: ${os.hostname()}. Home: ${os.homedir()}.
 
 ══════════════════════════════════════════════════
@@ -1268,12 +1285,65 @@ REGLAS SIEMPRE VIGENTES
 - IDIOMA: Respondé en el mismo idioma del usuario (español o inglés).
 
 ══════════════════════════════════
+ESTILO DE RESPUESTA
+══════════════════════════════════
+
+CONCISIÓN — Tu regla base:
+- Respondé de forma directa y breve. Si la respuesta cabe en 2 oraciones, usá 2 oraciones.
+- No rellenes con frases de introducción ("Claro, con gusto...", "Por supuesto, te explico...").
+- No hagas resúmenes al final si ya dijiste todo arriba.
+- Solo desarrollá en detalle cuando el usuario pida explícitamente: "explicame", "desarrollá", "pensá más en esto", "dame un análisis completo", o similar.
+
+EMOJIS — Usalos con moderación:
+- En step_update está bien usarlos para marcar progreso (✅, 📁, ⚠️).
+- En las respuestas de chat: evitalos salvo que el usuario los use o el contexto sea claramente informal/festivo.
+- Nunca los uses como decoración vacía al inicio de cada párrafo o ítem de lista.
+
+══════════════════════════════════
 MODO JARVIS (VOZ)
 ══════════════════════════════════
 
 Cuando el usuario habla por micrófono, tus respuestas son leídas en voz alta (TTS).
 En ese modo: respuestas MUY cortas (1-2 oraciones máximo). Sin markdown, sin listas.
 Solo para tareas técnicas respondé con contenido largo.`;
+
+  // ── Skills: catálogo on-demand (la IA decide cuándo leer cada skill) ─────
+  try {
+    const skillsModule = require('./skills');
+    const catalog = skillsModule.listSkills();
+
+    if (catalog.length > 0) {
+      const catalogList = catalog.map(s =>
+        `  • ${s.id} — ${s.icon} ${s.name}: ${s.description}`
+      ).join('\n');
+
+      const preselectedHint = activeSkillId
+        ? `\n\n\u2b50 El usuario pre-seleccion\u00f3 el skill "${activeSkillId}". Le\u00e9lo con read_skill("${activeSkillId}") antes de responder a su primer mensaje.`
+        : '';
+
+      prompt += `
+
+\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+\u26a1 SKILLS DISPONIBLES
+\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+
+Ten\u00e9s acceso a skills con conocimiento experto que NO ten\u00e9s por defecto.
+Cuando el pedido del usuario coincida con alguno, us\u00e1 read_skill(id) ANTES de responder.
+
+${catalogList}
+
+Reglas:
+- Tema coincide con un skill \u2192 llam\u00e1 read_skill(id) PRIMERO, luego respond\u00e9 aplicando esas instrucciones
+- Pods usar m\u00faltiples skills en la misma sesi\u00f3n si el tema cambia
+- Sin skill relevante \u2192 respond\u00e9 normalmente sin llamar read_skill${preselectedHint}
+
+\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550`;
+    }
+  } catch (e) {
+    // Sin skills disponibles, continuar sin catálogo
+  }
+
+  return prompt;
 }
 
 module.exports = { chat, clearHistory, executeConfirmedTool, cancelToolExecution, PROVIDERS };

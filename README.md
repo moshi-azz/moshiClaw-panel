@@ -127,6 +127,28 @@ Dentro de la PWA, toca el ícono de engranaje (⚙️) para configurar:
 
 ---
 
+## ⚡ Sistema de Skills
+
+moshiClaw soporta un sistema de **skills** compatible con el estándar SKILL.md (el mismo que usan Claude Code, OpenCode, Cursor y Gemini CLI). Cada skill es un paquete de conocimiento experto que la IA lee bajo demanda cuando el tema del pedido coincide.
+
+- **On-demand**: la IA decide cuándo necesita un skill y lo lee automáticamente con `read_skill`. No se pre-inyectan en el prompt para no desperdiciar contexto.
+- **Formato estándar**: cada skill es una carpeta con un `SKILL.md` (frontmatter YAML + cuerpo markdown). Scripts Python u otros recursos van en subcarpetas dentro de la misma carpeta del skill.
+- **Pre-selección manual**: el botón ⚡ en el panel abre el gestor de skills donde podés activar uno como "sugerido" para la sesión actual.
+- **Instalación desde GitHub**: pegá la URL de cualquier repositorio de skills y moshiClaw lo clona, extrae todos los SKILL.md, parchea las rutas absolutas y los registra automáticamente.
+
+```bash
+# Estructura de un skill local
+data/skills/
+  mi-skill/
+    SKILL.md          # frontmatter + instrucciones
+    scripts/
+      search.py       # scripts auxiliares (opcional)
+```
+
+Los skills se gestionan desde el panel (⚡) o directamente en `data/skills/`.
+
+---
+
 ## 🤖 Claude Code y Multi-Agentes (Experimental)
 
 moshiClaw incluye una interfaz avanzada para ejecutar **Claude Code** en múltiples directorios de forma persistente:

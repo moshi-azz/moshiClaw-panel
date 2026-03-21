@@ -53,6 +53,63 @@ Panel de administración web (Node.js + Express + vanilla JS) con:
 
 ---
 
+## Sistema de Skills (`modules/skills.js`)
+
+### Filosofía
+Skills = paquetes de conocimiento experto en formato SKILL.md (estándar compatible con Claude Code, OpenCode, Cursor, Codex, Gemini CLI). La IA decide cuándo necesita un skill y lo lee bajo demanda via `read_skill`. No se pre-inyectan en el contexto para conservar tokens. "Concise is Key."
+
+### Formato SKILL.md
+```
+---
+name: Nombre del skill
+description: Una línea describiendo cuándo usarlo
+icon: 🧠
+tags: [tag1, tag2]
+---
+# Instrucciones
+Contenido en markdown...
+```
+
+### Arquitectura
+- **Catálogo**: `listSkills()` escanea `data/skills/*/SKILL.md` y extrae el frontmatter (id, name, description, icon, tags).
+- **Contenido**: `getSkillContent(id)` devuelve el SKILL.md completo cuando la IA lo solicita.
+- **System prompt**: el catálogo (solo metadata liviana) se inyecta en cada prompt. La IA llama `read_skill(id)` para cargar el contenido completo.
+- **Pre-selección manual**: UI en el panel ⚡ permite sugerir un skill a la IA; se agrega una hint `⭐ El usuario pre-seleccionó...` en el system prompt.
+
+### Instalador GitHub (`installFromGitHub(repoUrl)`)
+- `git clone --depth 1` a directorio temporal
+- `find -L` para encontrar todos los SKILL.md (sigue symlinks)
+- Deduplicación por `fs.realpathSync` (evita instalar el mismo archivo dos veces vía symlinks)
+- `cp -rL` para copiar cada skill a `data/skills/<id>/` (desreferencia symlinks)
+- Parcheo de SKILL.md: inyecta `<!-- MOSHICLAW_INSTALL: BASE_DIR=... -->` y reemplaza rutas relativas `python3 skills/<name>/` y `python3 src/<name>/` con rutas absolutas
+- Retorna `{ success, installed[], skipped[], total }`
+
+### API REST (`server.js`)
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| GET | `/api/skills` | Lista todos los skills (metadata) |
+| GET | `/api/skills/:id` | Contenido raw del SKILL.md |
+| POST | `/api/skills` | Crear/actualizar skill |
+| DELETE | `/api/skills/:id` | Eliminar skill |
+| POST | `/api/skills/install-github` | Instalar desde URL de GitHub |
+
+### Herramienta IA
+```
+read_skill(id)  → Retorna el SKILL.md completo. Auto-ejecutada (no pide confirmación).
+```
+En el system prompt: `read_skill` y `read_file` están en `isAutoTool` para los tres providers (Gemini, DeepSeek, Ollama).
+
+### Bug conocido y resuelto
+| Bug | Síntoma | Fix |
+|-----|---------|-----|
+| Param mismatch en `read_skill` | `args.skill_id` era undefined cuando la IA llamaba con `{"id":"..."}` | Param renombrado a `id` en AI_TOOLS + fallback `args.id \|\| args.skill_id` |
+
+### Skills instalados (2026-03)
+- **Locales**: experto-en-codigo, modo-conciso, experto-excel, asistente-linux
+- **GitHub (nextlevelbuilder/ui-ux-pro-max-skill)**: ui-ux-pro-max, ui-styling, slides, design, design-system, brand, banner-design
+
+---
+
 ## Agente IA (`modules/ai.js`)
 
 ### Arquitectura Agentica (desde 2026-03)
@@ -96,3 +153,10 @@ El prompt instruye al modelo a:
 3. Usar `write_file` en lugar de heredocs bash
 4. Ejecutar comandos bash cortos y enfocados (uno por vez)
 5. Verificar errores en cada paso antes de continuar
+6. **Respuestas concisas por defecto** — sin relleno, sin emojis decorativos. Solo desarrollar cuando el usuario lo pide explícitamente.
+7. Emojis en `step_update` OK; en respuestas de chat: moderados y solo si el contexto lo pide.
+
+### Bugs resueltos en `open_in_brave` (2026-03-21)
+| Bug | Fix |
+|-----|-----|
+| `nohup cmd & \|\| next` inválido en `/bin/sh` | Reemplazado por `bash -c 'if command -v brave-browser ...; fi'` |

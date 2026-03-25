@@ -1,6 +1,7 @@
 const canva = require('../canva');
 const skillsModule = require('../skills');
 const fetch = require('node-fetch');
+const subagents = require('../subagents');
 
 module.exports = {
   definitions: {
@@ -42,10 +43,16 @@ module.exports = {
       }
     },
     deploy_subagent: {
-      description: 'Despliega un sub-agente autónomo.',
+      description: 'Despliega un sub-agente autónomo para realizar una tarea compleja en segundo plano. El agente reportará su resultado al finalizar.',
       parameters: {
-        task: { type: 'string', description: 'Tarea' },
-        name: { type: 'string', description: 'Nombre' }
+        task: { type: 'string', description: 'Descripción detallada de la tarea a realizar' },
+        name: { type: 'string', description: 'Nombre corto para identificar al agente' }
+      }
+    },
+    check_subagents: {
+      description: 'Consulta el estado de los sub-agentes desplegados y sus resultados.',
+      parameters: {
+        all: { type: 'boolean', description: 'Si es true, muestra todos los agentes. Si no, solo los de esta sesión.' }
       }
     }
   },
@@ -58,7 +65,7 @@ module.exports = {
     },
     generate_image: async (args, context) => {
       const apiKey = context.apiKey || process.env.GEMINI_API_KEY;
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${apiKey}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`;
       try {
         const response = await fetch(url, {
           method: 'POST',
@@ -80,7 +87,7 @@ module.exports = {
     },
     canva_list_designs: async (args) => {
       if (!canva.isConnected()) return 'No conectado.';
-      const resp = await canva.getFolders();
+      const resp = await canva.getDesigns();
       let items = resp.items || [];
       if (args.query) items = items.filter(i => (i.title || i.name).toLowerCase().includes(args.query.toLowerCase()));
       return items.slice(0, args.limit || 20).map(i => `- [${i.id}] ${i.title || i.name}`).join('\n');
@@ -96,8 +103,16 @@ module.exports = {
       return `Exportación iniciada (Job: ${res.job.id})`;
     },
     deploy_subagent: async (args, context) => {
-      if (context.onToolCall) context.onToolCall({ type: 'step_update', message: `🚀 Sub-agente: ${args.name}...` });
-      return `✅ Desplegado.`;
+      const { task, name } = args;
+      const id = await subagents.createSubagent(name, task, context.sessionId, context.apiKey);
+      if (context.onToolCall) context.onToolCall({ type: 'step_update', message: `🚀 Sub-agente "${name}" desplegado (ID: ${id.slice(0,8)}). Podes consultar su estado con check_subagents.` });
+      return `✅ Agente desplegado con ID: ${id}. Seguí con tus otras tareas, te avisaré cuando termine o podés consultar con check_subagents.`;
+    },
+    check_subagents: async (args, context) => {
+      const parentId = args.all ? null : context.sessionId;
+      const tasks = subagents.getTasks(parentId);
+      if (tasks.length === 0) return 'No hay sub-agentes activos.';
+      return tasks.map(t => `- [${t.status.toUpperCase()}] ${t.name}: ${t.description.slice(0,50)}... ${t.result ? `\n   Resultado: ${t.result.slice(0,100)}` : ''}`).join('\n');
     }
   }
 };

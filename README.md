@@ -12,13 +12,16 @@ Panel de control remoto y avanzado para tu PC Ubuntu. Accede desde el navegador 
 - **🌐 Navegador Automatizado** — Un motor de navegación basado en Puppeteer que permite a la IA interactuar con la web de forma autónoma.
 - **💻 Terminal Integrada** — Shell completo en el navegador (xterm.js + node-pty) con capacidades multitab y soporte de teclado móvil ampliado.
 - **🖥️ Escritorio Remoto** — Streaming de pantalla en tiempo real (X11 vía ffmpeg) con control de mouse y teclado.
-- **🤖 Agente IA Autónomo** — Chat multi-modelo (Gemini 2.5, DeepSeek, Ollama local) con modo agente completo: ejecuta comandos bash, crea archivos directamente, navega la web, genera imágenes y muestra el progreso paso a paso en tiempo real. Soporta **cancelación de emergencia** (abort signals) si la IA entra en bucles infinitos. El historial se persiste en disco.
+- **🤖 Agente IA Evolucionado** — Chat multi-modelo (Gemini, DeepSeek, Ollama) con capacidades de **Artifacts** para previsualizar código/HTML/SVG en un panel lateral dinámico.
+- **🚀 Sub-Agentes Autónomos** — Despliega "empleados digitales" que realizan tareas complejas en segundo plano mientras seguís usando el panel. Monitorealos desde la nueva pestaña **Subagents**.
+- **🖱️ Computer Use (GUI)** — La IA ahora puede ver tu escritorio real (gui_screenshot) y controlar el mouse/teclado para interactuar con aplicaciones nativas de Linux.
+- **📅 Suite de Productividad** — Herramientas integradas para gestionar correos electrónicos y calendario directamente desde el chat.
 - **💬 Mensajería Integrada** — Conexión con WhatsApp (QR / pairing code) y Messenger vía Puppeteer. Envío y recepción de mensajes directamente desde el panel.
-- **🔁 Auto-Responder IA** — Responde mensajes de WhatsApp y Messenger automáticamente usando la IA. Tres modos: OFF, SEMI (aprobación manual) y AUTO. Configurable por plataforma y contacto.
-- **🛡️ Claude Code & Multi-Agentes** — Integración experimental de Claude Code que permite gestionar múltiples agentes simultáneos en diferentes directorios con notificaciones de estado.
+- **🔁 Auto-Responder IA** — Responde mensajes de WhatsApp y Messenger automáticamente usando la IA. Tres modos: OFF, SEMI (aprobación manual) y AUTO.
+- **🛡️ Claude Code & Multi-Agentes** — Integración experimental para gestionar múltiples terminales de Claude Code con notificaciones de estado.
 - **🌗 Temas Dinámicos** — Soporte nativo para modo Claro y Oscuro con una interfaz premium inspirada en glassmorphism.
 - 🔔 **Notificaciones Push** — Alertas instantáneas si la CPU o RAM superan límites críticos o si un agente IA termina una tarea.
-- ⚡ **Máximo Rendimiento y Mantenibilidad** — Arquitectura altamente modular (Refactor 2026-03) con frontend separado en micro-módulos asíncronos (`public/js/`) y backend con registro centralizado de herramientas (`modules/tools/`). Carga instantánea y código desacoplado.
+- ⚡ **Arquitectura Modular 2026** — Sistema de herramientas (tools) extensible y frontend desacoplado en micro-módulos asíncronos para máxima velocidad.
 
 ---
 

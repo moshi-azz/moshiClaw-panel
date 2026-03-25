@@ -1,0 +1,18 @@
+[Unit]
+Description=moshiClaw Panel Service
+After=network.target ollama.service
+Wants=ollama.service
+
+[Service]
+Type=simple
+User=moshi
+WorkingDirectory=/home/moshi/moshiClaw-panel
+ExecStart=/usr/bin/bash /home/moshi/moshiClaw-panel/start.sh
+Restart=always
+RestartSec=10
+Environment=NODE_ENV=production
+# Fallback display if needed
+Environment=DISPLAY=:0
+
+[Install]
+WantedBy=multi-user.target

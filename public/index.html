@@ -100,12 +100,19 @@
       </div>
       <button class="toggle" id="toggle-autoexec"></button>
     </div>
-    <div class="settings-row">
+    <div class="settings-row" id="row-claudecode">
       <div>
         <div style="font-size:13px;color:var(--text)">Claude Code en navbar</div>
         <div style="font-size:11px;color:var(--text3);margin-top:2px">Agrega sección Claude Code al menú inferior</div>
       </div>
       <button class="toggle" id="toggle-claudecode"></button>
+    </div>
+    <div class="settings-row" id="row-expertmode" style="display:none;">
+      <div>
+        <div style="font-size:13px;color:var(--text)">Modo Experto (Ollama)</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">Activa todas las herramientas (Canva, Mensajería) pero puede ser lento.</div>
+      </div>
+      <button class="toggle" id="toggle-expertmode"></button>
     </div>
     <div style="font-size:11px;color:var(--text3);margin-top:12px;line-height:1.6">
       🔑 <b>Gemini:</b> aistudio.google.com/apikey<br>
@@ -441,7 +448,23 @@
           </div>
         </div>
 
-        <!-- Messenger Card -->
+        <!-- Panel: Subagents -->
+    <div class="panel" id="panel-subagents">
+      <div class="header">
+        <div class="header-left">
+          <div class="header-title">SUBAGENTS</div>
+          <div class="status-dot"></div>
+        </div>
+        <div class="header-right">
+          <button class="icon-btn" onclick="SubagentsUI.refresh()"><i data-lucide="rotate-cw"></i></button>
+        </div>
+      </div>
+      <div id="subagents-list" class="subagents-list">
+        <!-- List of subagents -->
+      </div>
+    </div>
+
+    <!-- More Menu Overlay -->
         <div class="chart-card" style="padding:14px;">
           <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
             <i data-lucide="facebook" style="width:22px;height:22px;color:var(--accent);flex-shrink:0;"></i>
@@ -582,8 +605,18 @@
     <button class="tab-btn active" data-panel="chat"><span class="tab-icon"><i data-lucide="bot"></i></span><span class="tab-label">Chat</span></button>
     <button class="tab-btn" data-panel="monitor"><span class="tab-icon"><i data-lucide="activity"></i></span><span class="tab-label">Monitor</span></button>
     <button class="tab-btn" data-panel="files"><span class="tab-icon"><i data-lucide="folder"></i></span><span class="tab-label">Archivos</span></button>
-    <button class="tab-btn" data-panel="claudecode" id="tab-claudecode" style="display:none"><span class="tab-icon"><i data-lucide="code-2"></i></span><span class="tab-label">Claude</span></button>
-    <button class="tab-btn" id="btn-more-menu"><span class="tab-icon"><i data-lucide="menu"></i></span><span class="tab-label">Menú</span></button>
+      <button class="tab-btn" data-panel="claudecode" id="tab-claudecode" style="display:none;">
+        <div class="tab-icon"><i data-lucide="zap"></i></div>
+        <div class="tab-label">Agents</div>
+      </button>
+
+      <button class="tab-btn" data-panel="subagents" id="tab-subagents">
+        <div class="tab-icon"><i data-lucide="users"></i></div>
+        <div class="tab-label">Subagents</div>
+      </button>
+
+      <button class="tab-btn" id="btn-more-menu">
+<span class="tab-icon"><i data-lucide="menu"></i></span><span class="tab-label">Menú</span></button>
   </div>
   
   <div id="more-menu" class="more-menu-overlay">
@@ -630,15 +663,21 @@
 
 
     <script src="/js/core.js"></script>
-  <script src="/js/system.js"></script>
-  <script src="/js/terminal.js"></script>
-  <script src="/js/claude_code.js"></script>
-  <script src="/js/media.js"></script>
-  <script src="/js/files.js"></script>
-  <script src="/js/skills.js"></script>
-  <script src="/js/messaging.js"></script>
-  <script src="/js/jarvis.js"></script>
-  <script src="/js/canva.js"></script>
+    <script src="/js/chat.js"></script>
+    <script src="/js/system.js"></script>
+    <script src="/js/terminal.js"></script>
+    <script src="/js/claude_code.js"></script>
+    <script src="/js/screen.js"></script>
+    <script src="/js/browser.js"></script>
+    <script src="/js/media.js"></script>
+    <script src="/js/files.js"></script>
+    <script src="/js/skills.js"></script>
+    <script src="/js/messaging.js"></script>
+    <script src="/js/jarvis.js"></script>
+    <script src="/js/canva.js"></script>
+    <script src="/js/modules/artifacts.js"></script>
+    <script src="/js/modules/subagents_ui.js"></script>
+    <script src="/app.js"></script>
 
   <div id="debug-console"></div>
 

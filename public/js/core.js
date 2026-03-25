@@ -549,6 +549,8 @@ function openSettings() {
   toggle.classList.toggle('on', !!settings.autoExec);
   const toggleCC = qs('#toggle-claudecode');
   if (toggleCC) toggleCC.classList.toggle('on', !!settings.claudeCode);
+  const toggleExp = qs('#toggle-expertmode');
+  if (toggleExp) toggleExp.classList.toggle('on', !!settings.expertMode);
   qs('#settings-modal').classList.add('open');
 }
 
@@ -570,6 +572,8 @@ function saveSettings() {
   settings.autoExec = qs('#toggle-autoexec').classList.contains('on');
   autoExec = settings.autoExec;
   settings.claudeCode = qs('#toggle-claudecode').classList.contains('on');
+  const toggleExp = qs('#toggle-expertmode');
+  if (toggleExp) settings.expertMode = toggleExp.classList.contains('on');
   localStorage.setItem('oc_settings', JSON.stringify(settings));
   applyClaudeCodeSetting();
   closeSettings();
@@ -578,7 +582,44 @@ function saveSettings() {
 
 // ─── MARKDOWN SIMPLE ──────────────────────────────────────────────────────────
 function renderMarkdown(text) {
-  return text
+  // Procesar bloques de artifact primero para evitar que el markdown los rompa
+  let processed = text;
+  const artifacts = [];
+  processed = processed.replace(/<artifact\s+title="(.*?)"\s+type="(.*?)"(?:\s+id="(.*?)")?>([\s\S]*?)<\/artifact>/gi, (match, title, type, id, content) => {
+    const artId = id || `art_${Date.now()}_${Math.floor(Math.random()*1000)}`;
+    artifacts.push({ id: artId, title, type, content: content.trim() });
+    return `<div class="artifact-card-incall" onclick="Artifacts.show('${artId}', '${type}', '${title}', \`${content.trim().replace(/`/g, '\\`').replace(/\$/g, '\\$')}\`)">
+      <div class="art-icon"><i data-lucide="package"></i></div>
+      <div class="art-info">
+        <div class="art-title">${title}</div>
+        <div class="art-subtitle">Presiona para ver ${type}</div>
+      </div>
+    </div>`;
+  });
+
+  const html = processed
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    // Restaurar nuestras tarjetas de artifact que fueron escapadas accidentalmente (si el replace anterior falló por orden)
+    // Pero lo ideal es que el replace de artifact genere algo que NO se escape.
+    // Vamos a hacerlo con un placeholder.
+    ;
+
+  // Re-procesar con placeholders para evitar escape de HTML en las tarjetas
+  const placeholders = [];
+  processed = text.replace(/<artifact\s+title="(.*?)"\s+type="(.*?)"(?:\s+id="(.*?)")?>([\s\S]*?)<\/artifact>/gi, (match, title, type, id, content) => {
+    const artId = id || `art_${Date.now()}_${Math.floor(Math.random()*1000)}`;
+    const idx = placeholders.length;
+    placeholders.push(`<div class="artifact-card-incall" onclick="Artifacts.show('${artId}', '${type}', '${title}', \`\${encodeURIComponent(\`${content.trim()}\`)}\`)">
+      <div class="art-icon"><i data-lucide="layout"></i></div>
+      <div class="art-info">
+        <div class="art-title">${title}</div>
+        <div class="art-subtitle">Ver ${type}</div>
+      </div>
+    </div>`);
+    return `__ARTIFACT_PLACEHOLDER_${idx}__`;
+  });
+
+  let rendered = processed
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1"><a href="$2" download class="download-link">Descargar imagen</a>')
     .replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>')
@@ -586,6 +627,13 @@ function renderMarkdown(text) {
     .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
     .replace(/\*([^*]+)\*/g, '<i>$1</i>')
     .replace(/\n/g, '<br>');
+
+  // Restaurar placeholders
+  placeholders.forEach((html, i) => {
+    rendered = rendered.replace(`__ARTIFACT_PLACEHOLDER_${i}__`, html);
+  });
+
+  return rendered;
 }
 
 // ─── DISCONNECT ───────────────────────────────────────────────────────────────
@@ -595,11 +643,6 @@ function disconnectAll() {
 }
 
 // ─── VISUAL VIEWPORT (keyboard avoidance) ─────────────────────────────────────
-// Cuando el teclado virtual se abre, visualViewport.height se reduce al área
-// visible sobre el teclado. Ajustamos #app a ese tamaño para que todo el
-// layout de Flexbox (header → content → tab-bar) se recalcule dentro del
-// espacio visible. El tab-bar queda oculto por CSS (.keyboard-open) y el
-// input del chat queda justo arriba del teclado, estilo WhatsApp.
 function setupViewportFix() {
   const app = qs('#app');
   if (!window.visualViewport) return;
@@ -614,20 +657,14 @@ function setupViewportFix() {
       const isKeyboardOpen = kbHeight > 50;
 
       if (isKeyboardOpen) {
-        // Teclado abierto: ajustar al viewport visible para que el input
-        // quede justo sobre el teclado (estilo WhatsApp).
         app.style.top    = offsetTop + 'px';
         app.style.height = vv.height + 'px';
       } else {
-        // Sin teclado: dejar que position:fixed + inset:0 + 100dvh
-        // ocupen todo el alto de pantalla de borde a borde.
         app.style.top    = '';
         app.style.height = '';
       }
 
       app.classList.toggle('keyboard-open', isKeyboardOpen);
-
-      // Re-ajustar el terminal activo si el viewport cambia (teclado abr/cierra)
       if (activeTermId && terminals[activeTermId]) {
         try { terminals[activeTermId].fit.fit(); } catch {}
       }
@@ -639,38 +676,76 @@ function setupViewportFix() {
   onViewportChange();
 }
 
-// ─── BOOT ─────────────────────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => { 
-  init(); 
-  setupViewportFix(); 
-  
-  // iOS AUDIO UNLOCKER: Safari requiere al menos una interacción para habilitar TTS
-  const unlockAudio = () => {
-    logDebug("🔊 Intentando desbloquear audio...");
-    if (window.speechSynthesis) {
-      window.speechSynthesis.cancel();
-      const utt = new SpeechSynthesisUtterance(' ');
-      utt.volume = 0;
-      window.speechSynthesis.speak(utt);
-    }
-    // Forzar AudioContext
-    if (!_keepAliveCtx) startKeepAlive();
-    else if (_keepAliveCtx.state === 'suspended') _keepAliveCtx.resume();
-    
-    // Play a tiny silent buffer via Audio API (more effective in PWA)
-    try {
-      const ctx = _keepAliveCtx || new (window.AudioContext || window.webkitAudioContext)();
-      const buffer = ctx.createBuffer(1, 1, 22050);
-      const source = ctx.createBufferSource();
-      source.buffer = buffer;
-      source.connect(ctx.destination);
-      source.start(0);
-      logDebug("✅ Audio Context Blessed");
-    } catch(e) { logDebug("⚠️ Audio Blessing Failed: " + e.message); }
+// ─── LOGGING ──────────────────────────────────────────────────────────────────
+function logDebug(msg) {
+  const dc = qs('#debug-console');
+  if (!dc) return;
+  const entry = document.createElement('div');
+  entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+  dc.appendChild(entry);
+  dc.scrollTop = dc.scrollHeight;
+  console.log("DEBUG:", msg);
+}
 
-    document.removeEventListener('click', unlockAudio);
-    document.removeEventListener('touchstart', unlockAudio);
-  };
-  document.addEventListener('click', unlockAudio);
-  document.addEventListener('touchstart', unlockAudio);
-});
+function toggleDebugConsole() {
+  const dc = qs('#debug-console');
+  dc.classList.toggle('visible');
+  if (dc.classList.contains('visible') && !qs('#btn-test-sound')) {
+    const btn = document.createElement('button');
+    btn.id = 'btn-test-sound';
+    btn.textContent = '🔊 PROBAR SONIDO (BEEP)';
+    btn.style = 'background:#10b981; color:white; border:none; padding:8px 12px; border-radius:6px; font-size:12px; margin-bottom:6px; cursor:pointer; font-weight:bold; width:100%; display:block;';
+    btn.onclick = () => {
+      playTestBeep();
+      _doSpeak("Probando sistema de voz.", 1.0, 1.0);
+    };
+
+    const btnVoices = document.createElement('button');
+    btnVoices.id = 'btn-list-voices';
+    btnVoices.textContent = '🎙️ VER VOCES DISPONIBLES';
+    btnVoices.style = 'background:#6366f1; color:white; border:none; padding:8px 12px; border-radius:6px; font-size:12px; margin-bottom:6px; cursor:pointer; font-weight:bold; width:100%; display:block;';
+    btnVoices.onclick = () => {
+      const voices = window.speechSynthesis.getVoices();
+      if (voices.length === 0) { logDebug("⚠️ Sin voces cargadas aún"); return; }
+      logDebug("── VOCES EN ESTE DISPOSITIVO ──");
+      voices.forEach((v, i) => logDebug(`${i+1}. ${v.name} [${v.lang}]${v.default ? ' ★' : ''}`));
+      logDebug(`── VOZ JARVIS ACTUAL: ${jarvisVoice ? jarvisVoice.name : 'ninguna'} ──`);
+    };
+
+    const btnCopyVoices = document.createElement('button');
+    btnCopyVoices.id = 'btn-copy-voices';
+    btnCopyVoices.textContent = '📋 COPIAR LISTA DE VOCES';
+    btnCopyVoices.style = 'background:#f59e0b; color:white; border:none; padding:8px 12px; border-radius:6px; font-size:12px; margin-bottom:12px; cursor:pointer; font-weight:bold; width:100%; display:block;';
+    btnCopyVoices.onclick = () => {
+      const voices = window.speechSynthesis.getVoices();
+      if (voices.length === 0) { logDebug("⚠️ Sin voces cargadas aún"); return; }
+      const txt = voices.map((v, i) => `${i+1}. ${v.name} [${v.lang}]${v.default ? ' ★' : ''}`).join('\n')
+        + `\n\nJARVIS usa: ${jarvisVoice ? jarvisVoice.name : 'ninguna'}`;
+      navigator.clipboard.writeText(txt)
+        .then(() => logDebug("✅ Lista copiada al portapapeles"))
+        .catch(() => logDebug("❌ No se pudo copiar (permiso denegado)"));
+    };
+
+    dc.prepend(btnCopyVoices);
+    dc.prepend(btnVoices);
+    dc.prepend(btn);
+  }
+}
+
+function playTestBeep() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(440, ctx.currentTime);
+    gain.gain.setValueAtTime(0.1, ctx.currentTime);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.2);
+    logDebug("🎵 Beep de prueba enviado...");
+  } catch (err) {
+    logDebug("❌ Beep Error: " + err.message);
+  }
+}

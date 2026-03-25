@@ -49,8 +49,9 @@ module.exports = {
     }
   },
   handlers: {
-    execute_command: async (args) => {
-      const result = await executeCommand(args.command, 120000);
+    execute_command: async (args, context) => {
+      const sessionId = context ? context.sessionId : null;
+      const result = await executeCommand(args.command, 120000, sessionId);
       return `STDOUT:\n${result.stdout}\nSTDERR:\n${result.stderr}\nCódigo de salida: ${result.exitCode}`;
     },
     read_file: async (args) => {

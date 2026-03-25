@@ -25,7 +25,7 @@ const messenger = require('./modules/messenger');
 const autoresponder = require('./modules/autoresponder');
 const skills        = require('./modules/skills');
 const canva         = require('./modules/canva');
-
+const subagents     = require('./modules/subagents');
 
 const PORT = process.env.PORT || 3000;
 const app = express();
@@ -175,7 +175,7 @@ statsHistory.init(monitoring);
 const activeAiRequests = new Map();
 
 async function handleChatMessage(ws, data, user) {
-  const { message, provider, model, apiKey, sessionId, autoExecute, activeSkillId } = data;
+  const { message, provider, model, apiKey, sessionId, autoExecute, activeSkillId, isExpert } = data;
   const sId = sessionId || user.user;
 
   if (!message || !provider || (!apiKey && provider !== 'ollama')) {
@@ -198,6 +198,7 @@ async function handleChatMessage(ws, data, user) {
       message,
       sessionId: sId,
       autoExecute: !!autoExecute,
+      isExpert: !!isExpert, // PASAR BANDERA
       activeSkillId: activeSkillId || null,
       onToolCall: (toolEvent) => {
         // Verificar si la solicitud fue cancelada
@@ -320,7 +321,13 @@ app.use('/api/messaging', authMiddleware, messagingRoutes);
 const skillsRoutes = require('./routes/skills');
 app.use('/api/skills', authMiddleware, skillsRoutes);
 
-// ─── CANVA OAuth + API ────────────────────────────────────────────────────────
+// Subagents
+app.get('/api/subagents/list', authMiddleware, (req, res) => {
+  const tasks = subagents.getTasks();
+  res.json({ tasks });
+});
+
+// Canva OAuth + API
 const canvaRoutes = require('./routes/canva_routes')(authMiddleware);
 app.use('/', canvaRoutes);
 

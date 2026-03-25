@@ -4,6 +4,7 @@ const os = require('os');
 const { v4: uuidv4 } = require('uuid');
 
 const sessions = new Map(); // sessionId → { ptyProcess, ws }
+const activeExecProcesses = new Map(); // sessionId → ChildProcess (exec)
 
 function createTerminal(ws, sessionId, cols = 120, rows = 36) {
   const shell = process.env.SHELL || '/bin/bash';
@@ -96,10 +97,11 @@ function handleWebSocket(ws, req, authUser) {
 }
 
 // Ejecutar un comando y devolver salida (para la IA)
-function executeCommand(cmd, timeout = 30000) {
+function executeCommand(cmd, timeout = 30000, sessionId = null) {
   return new Promise((resolve) => {
     const { exec } = require('child_process');
-    exec(cmd, { timeout, maxBuffer: 1024 * 1024 * 10 }, (err, stdout, stderr) => {
+    const child = exec(cmd, { timeout, maxBuffer: 1024 * 1024 * 10 }, (err, stdout, stderr) => {
+      if (sessionId) activeExecProcesses.delete(sessionId);
       resolve({
         stdout: stdout || '',
         stderr: stderr || '',
@@ -107,7 +109,33 @@ function executeCommand(cmd, timeout = 30000) {
         error: err ? err.message : null
       });
     });
+
+    if (sessionId) {
+      activeExecProcesses.set(sessionId, child);
+    }
   });
 }
 
-module.exports = { handleWebSocket, executeCommand };
+/**
+ * Mata el comando activo de una sesión (usado al "Borrar Chat" o "Stop")
+ */
+function killActiveCommand(sessionId) {
+  const child = activeExecProcesses.get(sessionId);
+  if (child) {
+    try {
+      console.log(`💀 Killing process tree for session ${sessionId} (PID ${child.pid})`);
+      const { exec } = require('child_process');
+      // Matar primero a los hijos de forma forzosa, luego al padre (shell)
+      exec(`pkill -9 -P ${child.pid}`, () => {
+        try { child.kill('SIGKILL'); } catch {}
+      });
+      activeExecProcesses.delete(sessionId);
+      return true;
+    } catch (e) {
+      console.error('Error killing execution:', e.message);
+    }
+  }
+  return false;
+}
+
+module.exports = { handleWebSocket, executeCommand, killActiveCommand };

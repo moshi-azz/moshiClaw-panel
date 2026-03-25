@@ -1,5 +1,5 @@
 // modules/ai.js — Adaptador multi-proveedor: Gemini + DeepSeek
-const { executeCommand } = require('./terminal');
+const { executeCommand, killActiveCommand } = require('./terminal');
 const browser = require('./browser');
 const whatsapp = require('./whatsapp');
 const messenger = require('./messenger');
@@ -26,6 +26,7 @@ const abortSignals = new Map(); // Store abort state per session
 
 function abortChat(sessionId) {
   abortSignals.set(sessionId, true);
+  killActiveCommand(sessionId);
 }
 
 function loadPersistedHistories() {
@@ -78,12 +79,12 @@ loadPersistedHistories();
 const AI_TOOLS = aiTools.definitions;
 
 // Ejecutar herramienta real
-async function runTool(toolName, args, onToolCall, apiKey) {
+async function runTool(toolName, args, onToolCall, apiKey, sessionId) {
   const handler = aiTools.handlers[toolName];
   if (!handler) return `Herramienta desconocida: ${toolName}`;
   
   try {
-    const result = await handler(args, { onToolCall, apiKey });
+    const result = await handler(args, { onToolCall, apiKey, sessionId });
     return result;
   } catch (err) {
     console.error(`Error ejecutando tool ${toolName}:`, err);
@@ -136,7 +137,7 @@ async function chatWithGemini(apiKey, selectedModel, message, sessionId, autoExe
       const toolId = `tc_${Date.now()}_${_toolCounter++}`;
       if (autoExecute || isAutoTool) {
         onToolCall && onToolCall({ type: 'executing', name: call.name, args: call.args, toolId });
-        toolResult = await runTool(call.name, call.args, onToolCall, apiKey);
+        toolResult = await runTool(call.name, call.args, onToolCall, apiKey, sessionId);
         onToolCall && onToolCall({ type: 'result', name: call.name, result: toolResult, toolId });
       } else {
         // Modo confirmación: pausar y esperar
@@ -223,7 +224,7 @@ async function chatWithDeepSeek(apiKey, selectedModel, message, sessionId, autoE
 
       if (autoExecute || isAutoTool) {
         onToolCall && onToolCall({ type: 'executing', name: toolCall.function.name, args, toolId });
-        toolResult = await runTool(toolCall.function.name, args, onToolCall, apiKey);
+        toolResult = await runTool(toolCall.function.name, args, onToolCall, apiKey, sessionId);
         onToolCall && onToolCall({ type: 'result', name: toolCall.function.name, result: toolResult, toolId });
       } else {
         toolResult = await waitForConfirmation(sessionId, toolCall.function.name, args, onToolCall, toolId);
@@ -258,7 +259,7 @@ async function chatWithDeepSeek(apiKey, selectedModel, message, sessionId, autoE
 }
 
 // ─── OLLAMA (OpenAI-compatible, local) ────────────────────────────────────────
-async function chatWithOllama(selectedModel, message, sessionId, autoExecute, onToolCall, activeSkillId = null) {
+async function chatWithOllama(selectedModel, message, sessionId, autoExecute, onToolCall, activeSkillId = null, isExpert = false) {
   const OpenAI = require('openai');
   const client = new OpenAI({
     apiKey: 'ollama',                        // Ollama no valida la key
@@ -269,13 +270,13 @@ async function chatWithOllama(selectedModel, message, sessionId, autoExecute, on
   const history = chatHistories.get(sessionId);
 
   const messages = [
-    { role: 'system', content: getSystemPrompt(activeSkillId) },
+    { role: 'system', content: getSystemPrompt(activeSkillId, !isExpert) }, // LITE si NO es experto
     ...history,
     { role: 'user', content: message }
   ];
 
   // Ollama soporta tool_calls en modelos recientes; si falla, se degrada a sin tools
-  const tools = aiTools.getOpenAITools();
+  const tools = isExpert ? aiTools.getOpenAITools() : aiTools.getLiteOpenAITools(); // DYNAMICO PARA OLLAMA
 
   // Indicar que esta sesión NO está abortada
   abortSignals.delete(sessionId);
@@ -299,6 +300,30 @@ async function chatWithOllama(selectedModel, message, sessionId, autoExecute, on
 
   let assistantMessage = response.choices[0].message;
 
+  // --- FALLBACK PARA MODELOS LOCALES (Ollama/Qwen) QUE ESCRIBEN JSON EN EL TEXTO ---
+  if (!assistantMessage.tool_calls || assistantMessage.tool_calls.length === 0) {
+    const jsonMatch = assistantMessage.content && assistantMessage.content.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      try {
+        const rawJson = jsonMatch[0];
+        const parsed = JSON.parse(rawJson);
+        const name = parsed.tool_id || parsed.tool || parsed.function || parsed.name || (parsed.skill_id ? 'read_skill' : null);
+        const args = parsed.arguments || parsed.args || parsed.parameters || 
+                     (parsed.skill_id ? { id: parsed.skill_id } : parsed);
+
+        if (name && aiTools.definitions[name]) {
+          console.log(`🛠️ Ollama: Detectado tool call manual en texto: ${name}`);
+          assistantMessage.tool_calls = [{
+            id: 'manual_' + Date.now(),
+            type: 'function',
+            function: { name, arguments: JSON.stringify(args) }
+          }];
+          assistantMessage.content = assistantMessage.content.replace(rawJson, '').trim();
+        }
+      } catch (e) { /* No era un JSON de herramienta válido */ }
+    }
+  }
+
   // Loop de tool calls
   let _ollamaToolCounter = 0;
   while (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
@@ -318,7 +343,7 @@ async function chatWithOllama(selectedModel, message, sessionId, autoExecute, on
 
       if (autoExecute || isAutoTool) {
         onToolCall && onToolCall({ type: 'executing', name: toolCall.function.name, args, toolId });
-        toolResult = await runTool(toolCall.function.name, args, onToolCall, null);
+        toolResult = await runTool(toolCall.function.name, args, onToolCall, null, sessionId);
         onToolCall && onToolCall({ type: 'result', name: toolCall.function.name, result: toolResult, toolId });
       } else {
         toolResult = await waitForConfirmation(sessionId, toolCall.function.name, args, onToolCall, toolId);
@@ -359,7 +384,7 @@ async function chatWithOllama(selectedModel, message, sessionId, autoExecute, on
     messages[messages.length - 1] = { ...lastMsg, content: cleanContent };
   }
   const fullHistory = messages.slice(1); // omitir system prompt
-  if (fullHistory.length > 80) fullHistory.splice(0, fullHistory.length - 80);
+  if (fullHistory.length > 20) fullHistory.splice(0, fullHistory.length - 20);
   chatHistories.set(sessionId, fullHistory);
   saveHistories();
 
@@ -422,14 +447,14 @@ function cancelToolExecution(confirmId) {
 }
 
 // ─── API PRINCIPAL ─────────────────────────────────────────────────────────────
-async function chat({ provider, apiKey, model, message, sessionId, autoExecute = false, activeSkillId = null, onToolCall }) {
+async function chat({ provider, apiKey, model, message, sessionId, autoExecute = false, activeSkillId = null, onToolCall, isExpert = false }) {
   sessionApiKeys.set(sessionId, apiKey); // Update saved key
   if (provider === 'gemini') {
     return chatWithGemini(apiKey, model, message, sessionId, autoExecute, onToolCall, activeSkillId);
   } else if (provider === 'deepseek') {
     return chatWithDeepSeek(apiKey, model, message, sessionId, autoExecute, onToolCall, activeSkillId);
   } else if (provider === 'ollama') {
-    return chatWithOllama(model, message, sessionId, autoExecute, onToolCall, activeSkillId);
+    return chatWithOllama(model, message, sessionId, autoExecute, onToolCall, activeSkillId, isExpert);
   }
   throw new Error(`Proveedor desconocido: ${provider}`);
 }
@@ -439,8 +464,26 @@ function clearHistory(sessionId) {
   saveHistories(); // Persiste la eliminación en disco
 }
 
-function getSystemPrompt(activeSkillId = null) {
+function getSystemPrompt(activeSkillId = null, isLite = false) {
   const os = require('os');
+  
+  if (isLite) {
+    return `Sos moshiClaw, una terminal inteligente con acceso SUDO total.
+HOSTNAME: ${os.hostname()}
+DIR: /home/moshi/moshiClaw-panel/
+
+REGLA DE ORO: Tenés acceso SUDO real. Usá execute_command, write_file o read_file. 
+NUNCA digas que no tenés acceso. 
+
+IMPORTANTE: SI USÁS UNA HERRAMIENTA, HACELO POR LA API. NO escribas JSON en el chat.
+
+Reglas: 
+1. Usá step_update para avisar qué vas a hacer. 
+2. No encadenes comandos gigantes. 
+3. Usá write_file para archivos. 
+4. Respondé MUY breve y conciso.`;
+  }
+
   let prompt = `Sos moshiClaw, un agente de IA autónomo y avanzado integrado en un Panel de Control.
 TU CARACTERÍSTICA PRINCIPAL es que tenés ACCESO REAL Y TOTAL (SUDO) al sistema Linux del usuario (Ubuntu) a través de tus herramientas (tools).
 
@@ -560,14 +603,55 @@ Solo para tareas técnicas respondé con contenido largo.`;
       ).join('\n');
 
       const preselectedHint = activeSkillId
-        ? `\n\n\u2b50 El usuario pre-seleccion\u00f3 el skill "${activeSkillId}". Le\u00e9lo con read_skill("${activeSkillId}") antes de responder a su primer mensaje.`
+        ? `\n\n[INSTRUCCIÓN CRÍTICA]: El usuario activó el Skill "${activeSkillId}".
+Llamá a read_skill({"id": "${activeSkillId}"}) INMEDIATAMENTE para conocer tus nuevas funciones.`
         : '';
 
       prompt += `
 
-\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
-\u26a1 SKILLS DISPONIBLES
-\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+══════════════════════════════════════════════════
+✨ MODO ARTIFACTS (VISTA LATERAL)
+══════════════════════════════════════════════════
+
+Cuando crees contenido visual, código largo, diagramas o documentos, usá el tag <artifact>. Esto abrirá una ventana lateral para el usuario.
+
+Formato:
+<artifact title="Título descriptivo" type="html|svg|code">
+... contenido ...
+</artifact>
+
+Reglas:
+1. Usá type="html" para apps web, juegos o componentes interactivos.
+2. Usá type="svg" para gráficos o diagramas.
+3. Usá type="code" para scripts largos o archivos de configuración.
+4. Podés referenciar varios archivos en un mismo chat usando distintos artifacts.
+
+══════════════════════════════════════════════════
+🤖 SUB-AGENTES AUTÓNOMOS
+══════════════════════════════════════════════════
+
+Podés delegar tareas complejas o largas (como investigar algo en la web, escribir un proyecto entero, o esperar a un evento) a un sub-agente usando deploy_subagent. Ellos corren en segundo plano.
+
+1. Delegá una tarea específica y clara.
+2. Usá check_subagents para ver si terminaron.
+3. El resultado aparecerá en la lista de agentes.
+
+══════════════════════════════════════════════════
+🖥️ COMPUTER USE (GUI AUTOMATION)
+══════════════════════════════════════════════════
+
+Tenés control directo sobre el escritorio Linux del usuario. Podés interactuar con aplicaciones nativas como el navegador, la calculadora, el administrador de archivos, etc.
+
+1. Empezá pidiendo la resolución con gui_get_resolution.
+2. Capturá la pantalla con gui_screenshot para ver qué hay.
+3. Usá gui_move y gui_click para interactuar.
+4. Usá gui_type para escribir.
+
+Cuidado: Solo interactuá con el escritorio si el usuario lo pide explícitamente ("abrí la calculadora y sumá esto", "buscá tal archivo en el escritorio").
+
+══════════════════════════════════════════════════
+⚡ SKILLS DISPONIBLES
+══════════════════════════════════════════════════
 
 Ten\u00e9s acceso a skills con conocimiento experto que NO ten\u00e9s por defecto.
 Cuando el pedido del usuario coincida con alguno, us\u00e1 read_skill(id) ANTES de responder.

@@ -165,27 +165,3 @@ async function installSkillFromGitHub() {
 }
 
 // ─── FIN SKILLS ───────────────────────────────────────────────────────────────
-
-
-function clearChatHistory() {
-  if (!confirm('¿Seguro que querés limpiar el historial de este chat?')) return;
-  if (eventsWS && eventsWS.readyState === WebSocket.OPEN) {
-    eventsWS.send(JSON.stringify({ type: 'clear_chat', sessionId: chatSessionId }));
-  }
-  // Limpiar estado persistente
-  chatHistory = [];
-  localStorage.removeItem('oc_chat');
-  chatSessionId = 'session_' + Date.now();
-  localStorage.setItem('oc_session_id', chatSessionId);
-  qs('#chat-messages').innerHTML = '<div class="msg system">Historial limpiado.</div>';
-  sessionAutoExec = false; // Reset session permissions too
-}
-
-function stopChatResponse() {
-  if (eventsWS && eventsWS.readyState === WebSocket.OPEN) {
-    eventsWS.send(JSON.stringify({ type: 'stop_chat', sessionId: chatSessionId }));
-  }
-  removeThinking();
-  addMessage('Respuesta detenida por el usuario.', 'system');
-  qs('#btn-send-chat').disabled = false;
-}

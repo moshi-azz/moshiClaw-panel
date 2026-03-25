@@ -31,3 +31,11 @@ list_models.js
 # Builds (por si se agrega frontend build system en el futuro)
 dist/
 build/
+
+# Temporales y Data
+carrusel_otono_siglo21.html
+icon_temp.png
+stock_moshiclaw.xlsx
+test_wa.js
+.wwebjs_cache/
+.wwebjs_auth/

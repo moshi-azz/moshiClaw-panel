@@ -1,6 +1,6 @@
 // modules/browser.js — Controlador de Navegador (Puppeteer) para agente IA
 const puppeteer = require('puppeteer-core');
-const chromium = require('chromium');
+const chromium = require('./utils');
 
 let browser = null;
 let page = null;
@@ -8,7 +8,7 @@ let page = null;
 async function launch() {
   if (browser) return;
   browser = await puppeteer.launch({
-    executablePath: chromium.path,
+    executablePath: chromium.getChromiumPath(),
     headless: true,
     args: [
       '--no-sandbox',

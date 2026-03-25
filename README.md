@@ -18,7 +18,7 @@ Panel de control remoto y avanzado para tu PC Ubuntu. Accede desde el navegador 
 - **🛡️ Claude Code & Multi-Agentes** — Integración experimental de Claude Code que permite gestionar múltiples agentes simultáneos en diferentes directorios con notificaciones de estado.
 - **🌗 Temas Dinámicos** — Soporte nativo para modo Claro y Oscuro con una interfaz premium inspirada en glassmorphism.
 - 🔔 **Notificaciones Push** — Alertas instantáneas si la CPU o RAM superan límites críticos o si un agente IA termina una tarea.
-- ⚡ **Máximo Rendimiento** — Arquitectura altamente modular con frontend ultraligero separado en JS/CSS asíncronos para carga instantánea y menos consumo de recursos.
+- ⚡ **Máximo Rendimiento y Mantenibilidad** — Arquitectura altamente modular (Refactor 2026-03) con frontend separado en micro-módulos asíncronos (`public/js/`) y backend con registro centralizado de herramientas (`modules/tools/`). Carga instantánea y código desacoplado.
 
 ---
 

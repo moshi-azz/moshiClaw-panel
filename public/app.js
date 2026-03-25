@@ -1900,19 +1900,38 @@ function handleToolEvent(event) {
     } else if (event.name === 'step_update') {
       cmdDisplay = escapeHtml(event.args && event.args.message || '');
     } else if (event.args && event.args.command) {
-      cmdDisplay = `<span style="opacity:0.6">$</span> ${escapeHtml(event.args.command)}`;
+      cmdDisplay = `${escapeHtml(event.args.command)}`;
     } else {
       cmdDisplay = escapeHtml(JSON.stringify(event.args || {}));
     }
+    
+    let ocVerb = event.name;
+    if (ocVerb === 'execute_command') ocVerb = 'exec';
+    else if (ocVerb === 'read_file') ocVerb = 'read';
+    else if (ocVerb === 'write_file') ocVerb = 'write';
+    else if (ocVerb === 'browser_navigate') ocVerb = 'nav';
+    else if (ocVerb === 'generate_image') ocVerb = 'image';
+
     const card = document.createElement('div');
-    card.className = 'tool-card';
+    card.className = 'tool-card-oc closed';
     card.dataset.toolId = toolId;
     card.innerHTML = `
-      <div class="tool-header">⚡ ${escapeHtml(event.name)}</div>
-      <div class="tool-cmd">${cmdDisplay}</div>
-      <div class="tool-result running">⏳ Ejecutando...</div>
+      <div class="oc-header" onclick="this.parentElement.classList.toggle('closed')">
+        <span class="oc-arrow">▼</span>
+        <span class="oc-icon">⚡</span>
+        <span class="oc-title"><b>1 tool</b> ${escapeHtml(ocVerb)}</span>
+      </div>
+      <div class="oc-body">
+        <div class="oc-tool-name" style="margin-bottom: 8px;">
+           <i data-lucide="file-code-2" style="width:14px;height:14px;vertical-align:middle;margin-right:4px;"></i> 
+           <span style="font-weight:bold; color:var(--text1)">${escapeHtml(event.name.replace(/_/g,' ').replace(/\b\w/g, c=>c.toUpperCase()))}</span>
+        </div>
+        <div class="oc-cmd" style="font-family:monospace; color:var(--text2); margin-bottom: 12px;">with ${cmdDisplay}</div>
+        <div class="oc-result running" style="color:var(--text3); font-size:12px;">⏳ Ejecutando...</div>
+      </div>
     `;
     qs('#chat-messages').appendChild(card);
+    if (typeof lucide !== 'undefined') lucide.createIcons();
     card.scrollIntoView({ behavior: 'smooth' });
     _toolCardMap.set(toolId, card);
   } else if (evtType === 'result') {
@@ -1920,22 +1939,31 @@ function handleToolEvent(event) {
     const toolId = event.toolId;
     const card = toolId ? _toolCardMap.get(toolId) : null;
     if (card) {
-      const resultEl = card.querySelector('.tool-result');
+      const resultEl = card.querySelector('.oc-result');
       if (resultEl) {
         resultEl.classList.remove('running');
         const resultText = String(event.result || '');
-        if (resultText.length > 600) {
-          const short = escapeHtml(resultText.slice(0, 600));
-          const full = escapeHtml(resultText);
-          resultEl.innerHTML = `<span class="r-short">${short}<span style="opacity:0.4">…</span></span><span class="r-full" style="display:none">${full}</span><button onclick="var s=this.previousElementSibling,p=s.previousElementSibling;s.style.display=s.style.display==='none'?'block':'none';p.style.display=p.style.display==='none'?'block':'none';this.textContent=this.textContent.includes('más')?'▲ menos':'▼ Ver más';" style="font-size:11px;color:var(--accent,#6366f1);background:none;border:none;cursor:pointer;padding:2px 0;display:block;margin-top:4px">▼ Ver más</button>`;
+        const isError = /\berror\b/i.test(resultText) && !resultText.startsWith('✅');
+        
+        resultEl.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:center; color: var(--text3); font-size: 11px;">
+             <span>${isError ? 'Failed' : 'Completed'}</span>
+             <span>${isError ? '<i data-lucide="x" style="color:var(--red);width:14px;height:14px;"></i>' : '<i data-lucide="check" style="color:var(--green);width:14px;height:14px;"></i>'}</span>
+          </div>
+          <div class="oc-output-log" style="display:none; margin-top:8px; white-space:pre-wrap; font-family:monospace; font-size:11px; color:var(--text2); background:var(--bg); border: 1px solid var(--border); padding:8px; border-radius:4px;"></div>
+        `;
+        const logEl = resultEl.querySelector('.oc-output-log');
+        logEl.textContent = resultText;
+        if(isError || resultText.length < 300) {
+            logEl.style.display = 'block';
         } else {
-          resultEl.textContent = resultText || '(sin salida)';
+            const btn = document.createElement('button');
+            btn.textContent = 'Ver output completo';
+            btn.style.cssText = 'background:none; border:none; color:var(--accent); cursor:pointer; font-size:11px; margin-top:4px; padding:0;';
+            btn.onclick = () => { logEl.style.display = logEl.style.display==='none' ? 'block' : 'none'; };
+            resultEl.appendChild(btn);
         }
-        if (/\berror\b/i.test(resultText) && !resultText.startsWith('✅')) {
-          resultEl.style.color = 'var(--red, #f87171)';
-        } else if (resultText.startsWith('✅')) {
-          resultEl.style.color = 'var(--green, #4ade80)';
-        }
+        if (typeof lucide !== 'undefined') lucide.createIcons();
       }
       _toolCardMap.delete(toolId);
     }

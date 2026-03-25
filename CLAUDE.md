@@ -7,8 +7,16 @@ Panel de administración web (Node.js + Express + vanilla JS) con:
 - JARVIS: asistente de voz integrado en el navegador (Web Speech API)
 
 ### Nueva Arquitectura (Refactor 2026-03)
-- **Backend Modularizado:** `server.js` (punto de entrada) maneja WebSockets y la Inicialización, delegando todos los endpoints a la carpeta `routes/` (`system.js`, `files.js`, `messaging.js`, `scripts.js`, `canva_routes.js`, `skills.js`).
-- **Frontend Separado:** `public/index.html` es el esqueleto estructural. Los estilos globales residen en `public/styles.css` y la lógica JavaScript en `public/app.js` para optimizar caché y carga.
+- **Backend Modularizado:**
+  - `server.js`: Punto de entrada, WebSockets e inicialización.
+  - `routes/`: Endpoints REST (`system.js`, `files.js`, `messaging.js`, `scripts.js`, `canva_routes.js`, `skills.js`).
+  - `modules/tools/`: Registro central de herramientas de la IA (`index.js`, `system_tools.js`, `browser_tools.js`, `messaging_tools.js`, `ai_meta_tools.js`).
+  - `modules/utils.js`: Utilidades compartidas (detección de Chromium, sleep, etc.).
+- **Frontend Modularizado:**
+  - `public/index.html`: Estructura base.
+  - `public/js/`: Módulos ES6 funcionales (`core.js`, `terminal.js`, `system.js`, `claude_code.js`, `messaging.js`, `jarvis.js`, etc.).
+  - `public/app.js`: Cargador/orquestador principal ligero.
+  - `public/styles.css`: Estilos unificados.
 
 ---
 
@@ -54,6 +62,7 @@ Panel de administración web (Node.js + Express + vanilla JS) con:
 - `modules/autoresponder.js` — Auto-responder IA para WhatsApp y Messenger (modos: OFF / SEMI / AUTO)
 - `modules/messenger.js` — Integración Messenger vía Puppeteer (envío, recepción, chats)
 - `modules/whatsapp.js` — Integración WhatsApp vía whatsapp-web.js (QR / pairing code)
+- `modules/utils.js` — Helpers compartidos (detección de navegador, timers)
 
 ---
 
@@ -117,9 +126,13 @@ En el system prompt: `read_skill` y `read_file` están en `isAutoTool` para los 
 ## Agente IA (`modules/ai.js`)
 
 ### Arquitectura Agentica (desde 2026-03)
-El módulo `ai.js` implementa un loop de tool calls multi-proveedor (Gemini, DeepSeek, Ollama).
+El módulo `ai.js` implementa un loop de tool calls multi-proveedor (Gemini, DeepSeek, Ollama). Consume herramientas registradas dinámicamente desde `modules/tools/index.js`, lo que permite añadir funcionalidades sin modificar el orquestador principal.
 
-### Herramientas disponibles para la IA
+### Herramientas y Modularidad (`modules/tools/`)
+- `system_tools.js`: `execute_command`, `read_file`, `write_file`, `step_update`.
+- `browser_tools.js`: `browser_navigate`, `browser_get_content`, `browser_screenshot`, `browser_click`, `browser_scroll`.
+- `messaging_tools.js`: `messaging_send`, `messaging_status`, `messaging_get_chats`.
+- `ai_meta_tools.js`: `generate_image`, `open_in_brave`, `play_media`, `stop_media`, `read_skill`, `deploy_subagent`, `canva_*`.
 | Herramienta | Descripción |
 |-------------|-------------|
 | `execute_command` | Bash con timeout 2min, buffer 10MB |

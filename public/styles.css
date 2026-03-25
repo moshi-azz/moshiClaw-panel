@@ -549,7 +549,62 @@
   }
   .thinking-body.open { display: block; }
 
-  /* Tool call card */
+  /* Tool call card (Estilo OpenClaw) */
+  .tool-card-oc {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 10px;
+    font-size: 13px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: all 0.2s;
+    overflow: hidden;
+  }
+  .tool-card-oc.closed .oc-body {
+    display: none;
+  }
+  .tool-card-oc.closed .oc-arrow {
+    transform: rotate(-90deg);
+  }
+  .oc-header {
+    display: flex;
+    align-items: center;
+    padding: 10px 14px;
+    cursor: pointer;
+    background: var(--surface);
+    user-select: none;
+    transition: background 0.15s;
+    gap: 8px;
+  }
+  .oc-header:hover {
+    background: var(--surface2);
+  }
+  .oc-arrow {
+    font-size: 10px;
+    color: var(--text3);
+    transition: transform 0.2s;
+    margin-right: 2px;
+  }
+  .oc-icon {
+    color: var(--red); /* OpenClaw usa rayo rojo */
+    font-size: 14px;
+  }
+  .oc-title {
+    color: var(--text2);
+    font-family: var(--font-mono, monospace);
+  }
+  .oc-title b {
+    color: var(--text);
+  }
+  .oc-body {
+    padding: 12px 14px;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+  }
+  @keyframes pulse-opacity { 0%,100%{opacity:0.5} 50%{opacity:1} }
+  .oc-result.running { animation: pulse-opacity 1.2s ease-in-out infinite; }
+  
+  /* Mantener el tool-card clásico para los confirmation events que no refactoricé a fondo aún */
   .tool-card {
     background: var(--surface); border: none; border-radius: 10px;
     padding: 10px 12px; font-size: 12px; font-family: var(--font-mono);
@@ -558,8 +613,6 @@
   .tool-card .tool-header { color: var(--orange); margin-bottom: 6px; font-size: 11px; }
   .tool-card .tool-cmd { color: var(--accent); word-break: break-all; }
   .tool-card .tool-result { color: var(--text2); margin-top: 6px; font-size: 11px; max-height: 150px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; }
-  .tool-card .tool-result.running { color: var(--text2); opacity: 0.7; animation: pulse-opacity 1.2s ease-in-out infinite; }
-  @keyframes pulse-opacity { 0%,100%{opacity:0.5} 50%{opacity:1} }
   .tool-card .tool-actions { display: flex; gap: 6px; margin-top: 8px; }
   .btn-confirm { background: var(--surface); color: var(--green); border: none; border-radius: 6px; padding: 5px 14px; font-size: 12px; font-weight: 700; cursor: pointer; box-shadow: var(--neu-outset-sm); transition: all 0.2s; }
   .btn-confirm:active { box-shadow: var(--neu-inset-sm); transform: scale(0.95); }

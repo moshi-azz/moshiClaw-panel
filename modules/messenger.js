@@ -4,10 +4,11 @@ const path = require('path');
 const fs = require('fs');
 const EventEmitter = require('events');
 
+const utils = require('./utils');
 const emitter = new EventEmitter();
 
 // Reemplaza page.waitForTimeout() eliminado en Puppeteer v22+
-const sleep = (ms) => new Promise(res => setTimeout(res, ms));
+const sleep = utils.sleep;
 
 const COOKIES_PATH = path.join(__dirname, '..', 'data', 'fb_cookies.json');
 const MESSENGER_URL = 'https://www.messenger.com';
@@ -32,13 +33,7 @@ function getStatus() {
 }
 
 function getExecutablePath() {
-  try { return require('chromium').path; } catch {}
-  const candidates = [
-    '/usr/bin/chromium-browser', '/usr/bin/chromium',
-    '/usr/bin/google-chrome', '/usr/bin/google-chrome-stable',
-    '/snap/bin/chromium',
-  ];
-  return candidates.find(p => fs.existsSync(p)) || 'chromium-browser';
+  return utils.getChromiumPath();
 }
 
 async function saveCookies() {

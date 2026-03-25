@@ -3,6 +3,7 @@ const { Client, LocalAuth } = require('whatsapp-web.js');
 const QRCode = require('qrcode');
 const path = require('path');
 const EventEmitter = require('events');
+const utils = require('./utils');
 
 const emitter = new EventEmitter();
 
@@ -44,14 +45,7 @@ async function start(onMessage, phone) {
   lastError = null;
   emitter.emit('status', status);
 
-  // Intentar reusar Chromium ya instalado en el proyecto
-  let executablePath;
-  try {
-    const chromiumPkg = require('chromium');
-    executablePath = chromiumPkg.path;
-  } catch {
-    executablePath = undefined;
-  }
+  let executablePath = utils.getChromiumPath();
 
   // Destruir cliente anterior si existe
   if (client) {

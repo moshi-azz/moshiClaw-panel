@@ -17,7 +17,8 @@ Panel de control remoto y avanzado para tu PC Ubuntu. Accede desde el navegador 
 - **🔁 Auto-Responder IA** — Responde mensajes de WhatsApp y Messenger automáticamente usando la IA. Tres modos: OFF, SEMI (aprobación manual) y AUTO. Configurable por plataforma y contacto.
 - **🛡️ Claude Code & Multi-Agentes** — Integración experimental de Claude Code que permite gestionar múltiples agentes simultáneos en diferentes directorios con notificaciones de estado.
 - **🌗 Temas Dinámicos** — Soporte nativo para modo Claro y Oscuro con una interfaz premium inspirada en glassmorphism.
-- **🔔 Notificaciones Push** — Alertas instantáneas si la CPU o RAM superan límites críticos o si un agente IA termina una tarea.
+- 🔔 **Notificaciones Push** — Alertas instantáneas si la CPU o RAM superan límites críticos o si un agente IA termina una tarea.
+- ⚡ **Máximo Rendimiento** — Arquitectura altamente modular con frontend ultraligero separado en JS/CSS asíncronos para carga instantánea y menos consumo de recursos.
 
 ---
 
@@ -146,6 +147,43 @@ data/skills/
 ```
 
 Los skills se gestionan desde el panel (⚡) o directamente en `data/skills/`.
+
+---
+
+## 🎨 Conectar Canva
+
+moshiClaw incluye integración nativa con **Canva** para que la IA pueda crear, listar y exportar diseños directamente desde el chat.
+
+### Cómo conectar tu cuenta
+
+1. En el panel, abrí el menú **☰** y tocá **Canva**.
+2. Hacé click en **🎨 Conectar cuenta de Canva**.
+3. Se abre una ventana de login de Canva — iniciá sesión con tu cuenta.
+4. Autorizá los permisos que moshiClaw solicita (leer y crear diseños).
+5. La ventana se cierra sola y el panel queda conectado. ✅
+
+Una vez conectado, podés pedirle a la IA cosas como:
+- *"Creame un poster de bienvenida en Canva"*
+- *"Listá mis diseños de Canva"*
+- *"Exportá el diseño DAxxxxxx a PDF"*
+
+### ❓ No me abre la ventana / da error
+
+**Causa más común: el panel no corre en `localhost:3000`.**
+
+La integración de Canva tiene la redirect URI fija en `http://localhost:3000/auth/canva/callback`. Si tu panel usa un puerto diferente (ej: 8080) o accedés desde una URL externa (Tailscale, ngrok), el login va a fallar porque Canva rechaza redirect URIs no registradas.
+
+**Soluciones:**
+
+| Situación | Solución |
+|-----------|----------|
+| Usás un puerto distinto al 3000 | Agregá `CANVA_REDIRECT_URI=http://localhost:TU_PUERTO/auth/canva/callback` en tu `.env` |
+| Accedés desde Tailscale/ngrok | Abrí el panel en `http://localhost:3000` en la **misma PC** donde corre el servidor para hacer el login inicial. El token queda guardado y después podés usar el panel desde cualquier URL. |
+| La ventana se abre pero queda en blanco | Asegurate de tener Node.js 18+ (`node --version`). |
+| Error "invalid_client" | La app de Canva puede estar en modo de revisión. Contactá al desarrollador de moshiClaw. |
+
+> [!TIP]
+> El token se guarda en `data/canva_token.json` y se renueva automáticamente. Solo necesitás hacer el login **una vez**. Si desconectás la cuenta y querés reconectar, repetí el proceso desde el panel.
 
 ---
 

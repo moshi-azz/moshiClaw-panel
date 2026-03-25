@@ -24,6 +24,7 @@ const whatsapp = require('./modules/whatsapp');
 const messenger = require('./modules/messenger');
 const autoresponder = require('./modules/autoresponder');
 const skills        = require('./modules/skills');
+const canva         = require('./modules/canva');
 
 
 const PORT = process.env.PORT || 3000;
@@ -260,209 +261,18 @@ app.post('/api/login', loginLimiter, (req, res) => {
   }
 });
 
-// Stats (REST, para PWA offline)
-app.get('/api/stats', authMiddleware, async (req, res) => {
-  const stats = await monitoring.getStats();
-  if (stats) res.json(stats);
-  else res.status(500).json({ error: 'Error obteniendo estadísticas' });
-});
-
-app.get('/api/stats/history', authMiddleware, (req, res) => {
-  res.json({ history: statsHistory.getHistory() });
-});
-
-
-// Lista de procesos
-app.get('/api/processes', authMiddleware, async (req, res) => {
-  const procs = await monitoring.getProcesses();
-  res.json({ processes: procs });
-});
-
-app.post('/api/processes/kill', authMiddleware, (req, res) => {
-  const { pid } = req.body;
-  if (!pid || isNaN(parseInt(pid))) {
-    return res.status(400).json({ error: 'PID inválido' });
-  }
-  const { exec } = require('child_process');
-  const targetPid = parseInt(pid);
-
-  // Estrategia mejorada: matar proceso + todo su grupo de procesos (árbol de hijos)
-  // 1. Obtener PGID del proceso
-  exec(`ps -o pgid= -p ${targetPid} 2>/dev/null`, (pgidErr, pgidOut) => {
-    const pgid = parseInt(pgidOut.trim()) || targetPid;
-
-    // 2. Enviar SIGTERM al grupo completo (mata hijos también)
-    const killGroupCmd = pgid > 1
-      ? `kill -TERM -${pgid} 2>/dev/null || kill -TERM ${targetPid}`
-      : `kill -TERM ${targetPid}`;
-
-    exec(killGroupCmd, (err) => {
-      if (err) {
-        // 3. Si TERM falla, forzar con SIGKILL
-        exec(`kill -KILL ${targetPid} 2>/dev/null || sudo kill -KILL ${targetPid}`, (err2) => {
-          if (err2) return res.status(500).json({ success: false, error: err2.message });
-          res.json({ success: true, message: `Proceso ${targetPid} terminado (KILL).` });
-        });
-        return;
-      }
-      res.json({ success: true, message: `Proceso ${targetPid} y su grupo terminados.` });
-    });
-  });
-});
+// ─── SISTEMA (Stats/Process/Actions) ───────────────────────────────────────────
+const systemRoutes = require('./routes/system');
+app.use('/api', authMiddleware, systemRoutes);
 
 // ─── SCRIPTS (Phase 4) ────────────────────────────────────────────────────────
-app.get('/api/scripts', authMiddleware, (req, res) => {
-  res.json({ scripts: scripts.getScripts() });
-});
+const scriptsRoutes = require('./routes/scripts');
+app.use('/api/scripts', authMiddleware, scriptsRoutes);
 
-app.post('/api/scripts/run', authMiddleware, async (req, res) => {
-  const { id } = req.body;
-  try {
-    const result = await scripts.runScript(id);
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-app.post('/api/scripts/add', authMiddleware, (req, res) => {
-  const { name, cmd } = req.body;
-  if (!name || !cmd) return res.status(400).json({ error: 'Faltan datos' });
-  const newScript = scripts.addScript(name, cmd);
-  res.json({ success: true, script: newScript });
-});
-
-app.delete('/api/scripts/:id', authMiddleware, (req, res) => {
-  scripts.deleteScript(req.params.id);
-  res.json({ success: true });
-});
-// ─── SISTEMA (Reboot/Shutdown/Cleanup) ─────────────────────────────────────────
-app.post('/api/system/:action', authMiddleware, (req, res) => {
-  const { action } = req.params;
-  const { exec } = require('child_process');
-  
-  let cmd = '';
-  let msg = '';
-
-  if (action === 'reboot') {
-    cmd = 'sudo reboot';
-    msg = 'Reiniciando el sistema...';
-  } else if (action === 'shutdown') {
-    cmd = 'sudo shutdown -h now';
-    msg = 'Apagando el sistema...';
-  } else if (action === 'cleanup') {
-    // Limpieza agresiva de temporales y logs de apt
-    cmd = 'sudo rm -rf /tmp/* && sudo apt-get clean';
-    msg = 'Limpieza de temporales completada.';
-  } else {
-    return res.status(400).json({ error: 'Acción no reconocida' });
-  }
-
-  console.log(`⚠️  SYSTEM ACTION: ${action} by authorized user`);
-  
-  exec(cmd, (err, stdout, stderr) => {
-    if (action === 'cleanup') {
-       if (err) {
-           return res.status(500).json({ success: false, error: err.message });
-       }
-       return res.json({ success: true, message: msg });
-    }
-  });
-
-  if (action !== 'cleanup') {
-    res.json({ success: true, message: msg });
-  }
-});
-
-// Captura de pantalla individual
-app.get('/api/screenshot', authMiddleware, async (req, res) => {
-  try {
-    const b64 = await screen.takeSnapshot();
-    res.json({ image: b64, timestamp: Date.now() });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Captura de webcam (Phase 2)
-app.get('/api/webcam-snap', authMiddleware, async (req, res) => {
-  try {
-    const b64 = await webcam.takeWebcamSnapshot();
-    res.json({ image: b64, timestamp: Date.now() });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
 
 // ─── RUTAS DE FILES ───────────────────────────────────────────────────────────
-const multer = require('multer');
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-      try {
-          const base = '/home/moshi';
-          const p = (req.body.path || '').replace(/^\/+/, '');
-          const target = path.resolve(base, p);
-          if (!target.startsWith(path.resolve(base))) throw new Error("Acción denegada");
-          cb(null, target);
-      } catch (err) {
-          cb(err);
-      }
-  },
-  filename: function (req, file, cb) {
-    cb(null, file.originalname);
-  }
-});
-const upload = multer({ storage: storage });
-
-app.get('/api/files/list', authMiddleware, async (req, res) => {
-    try {
-        const items = await files.listFiles(req.query.path || '/');
-        res.json({ success: true, items });
-    } catch (err) {
-        res.status(500).json({ success: false, error: err.message });
-    }
-});
-
-app.get('/api/files/download', authMiddleware, (req, res) => {
-    try {
-        const target = files.getDownloadPath(req.query.path);
-        res.download(target);
-    } catch (err) {
-        res.status(500).send(err.message);
-    }
-});
-
-app.get('/api/files/preview', authMiddleware, (req, res) => {
-    try {
-        const target = files.getDownloadPath(req.query.path);
-        res.sendFile(target);
-    } catch (err) {
-        res.status(500).send(err.message);
-    }
-});
-
-
-app.post('/api/files/upload', authMiddleware, upload.array('files'), (req, res) => {
-    res.json({ success: true, message: "Archivos subidos correctamente." });
-});
-
-app.post('/api/files/rename', authMiddleware, async (req, res) => {
-    try {
-        await files.renameFile(req.body.path, req.body.newName);
-        res.json({ success: true });
-    } catch (err) {
-        res.status(500).json({ success: false, error: err.message });
-    }
-});
-
-app.delete('/api/files/delete', authMiddleware, async (req, res) => {
-    try {
-         await files.deleteFileOrFolder(req.body.path);
-         res.json({ success: true });
-    } catch(err) {
-         res.status(500).json({ success: false, error: err.message });
-    }
-});
+const filesRoutes = require('./routes/files');
+app.use('/api/files', authMiddleware, filesRoutes);
 
 // ─── MENSAJERÍA AUTO-RESPONDER ────────────────────────────────────────────────
 
@@ -500,192 +310,17 @@ autoresponder.emitter.on('mode_changed', (mode) => {
   });
 });
 
-// Estado general de mensajería
-app.get('/api/messaging/status', authMiddleware, (req, res) => {
-  res.json({
-    whatsapp: whatsapp.getStatus(),
-    messenger: messenger.getStatus(),
-    autoresponder: autoresponder.getConfig(),
-  });
-});
-
-// ─── MUTEX: evitar conflicto WA ↔ Messenger (ambos usan Chromium) ─────────────
-let chromiumLock = null; // 'whatsapp' | 'messenger' | null
-
-// Auto-liberar el mutex si el proceso termina inesperadamente
-whatsapp.emitter.on('status', (s) => {
-  if ((s === 'disconnected' || s === 'error') && chromiumLock === 'whatsapp') chromiumLock = null;
-});
-messenger.emitter.on('status', (ev) => {
-  const s = typeof ev === 'string' ? ev : ev?.status;
-  if ((s === 'disconnected' || s === 'error') && chromiumLock === 'messenger') chromiumLock = null;
-});
-
-// WhatsApp: iniciar (genera QR o código de teléfono)
-app.post('/api/messaging/whatsapp/start', authMiddleware, async (req, res) => {
-  if (chromiumLock === 'messenger') {
-    return res.status(409).json({
-      ok: false,
-      error: '⚠️ Messenger está activo. Desconectá Messenger primero antes de conectar WhatsApp.'
-    });
-  }
-  const phone = (req.body && req.body.phone) ? String(req.body.phone).replace(/\D/g, '') : null;
-  chromiumLock = 'whatsapp';
-  const result = await whatsapp.start(null, phone || null);
-  if (!result.ok) chromiumLock = null;
-  res.json(result);
-});
-
-// WhatsApp: estado actual (QR o pairing code)
-app.get('/api/messaging/whatsapp/qr', authMiddleware, (req, res) => {
-  const { qr, status, pairingCode } = whatsapp.getStatus();
-  if (pairingCode) res.json({ pairingCode, status });
-  else if (qr) res.json({ qr, status });
-  else res.json({ status, msg: 'Sin QR disponible (ya conectado o no iniciado)' });
-});
-
-// WhatsApp: detener
-app.post('/api/messaging/whatsapp/stop', authMiddleware, async (req, res) => {
-  await whatsapp.stop();
-  if (chromiumLock === 'whatsapp') chromiumLock = null;
-  res.json({ ok: true });
-});
-
-// Messenger: iniciar (email + password)
-app.post('/api/messaging/messenger/start', authMiddleware, async (req, res) => {
-  if (chromiumLock === 'whatsapp') {
-    return res.status(409).json({
-      ok: false,
-      error: '⚠️ WhatsApp está activo. Desconectá WhatsApp primero antes de conectar Messenger.'
-    });
-  }
-  const { email, password } = req.body;
-  if (!email || !password) return res.status(400).json({ error: 'Faltan email y password' });
-  chromiumLock = 'messenger';
-  const result = await messenger.start(email, password);
-  if (!result.ok) chromiumLock = null;
-  res.json(result);
-});
-
-// Messenger: reintentar después de 2FA manual
-app.post('/api/messaging/messenger/retry2fa', authMiddleware, async (req, res) => {
-  const result = await messenger.retryAfter2FA();
-  res.json(result);
-});
-
-// Messenger: detener
-app.post('/api/messaging/messenger/stop', authMiddleware, async (req, res) => {
-  await messenger.stop();
-  if (chromiumLock === 'messenger') chromiumLock = null;
-  res.json({ ok: true });
-});
-
-// Enviar mensaje manual
-app.post('/api/messaging/send', authMiddleware, async (req, res) => {
-  const { platform, to, text } = req.body;
-  try {
-    if (platform === 'whatsapp') await whatsapp.sendMessage(to, text);
-    else if (platform === 'messenger') await messenger.sendMessage(to, text);
-    else return res.status(400).json({ error: 'Plataforma inválida' });
-    res.json({ ok: true });
-  } catch (err) {
-    res.status(500).json({ ok: false, error: err.message });
-  }
-});
-
-// Pendientes (modo SEMI)
-app.get('/api/messaging/pending', authMiddleware, (req, res) => {
-  res.json({ pending: autoresponder.getPending() });
-});
-
-// Aprobar respuesta pendiente
-app.post('/api/messaging/approve/:pendingId', authMiddleware, async (req, res) => {
-  const result = await autoresponder.approveResponse(req.params.pendingId, sendReply);
-  res.json(result);
-});
-
-// Rechazar respuesta pendiente
-app.post('/api/messaging/reject/:pendingId', authMiddleware, (req, res) => {
-  res.json(autoresponder.rejectResponse(req.params.pendingId));
-});
-
-// Historial
-app.get('/api/messaging/history', authMiddleware, (req, res) => {
-  const limit = parseInt(req.query.limit) || 50;
-  res.json({ history: autoresponder.getHistory(limit) });
-});
-
-// Modo global
-app.post('/api/messaging/mode', authMiddleware, (req, res) => {
-  const { mode } = req.body;
-  res.json(autoresponder.setMode(mode));
-});
-
-// Modo por plataforma
-app.post('/api/messaging/platform-mode', authMiddleware, (req, res) => {
-  const { platform, mode } = req.body;
-  res.json(autoresponder.setPlatformMode(platform, mode));
-});
-
-// Bloquear / desbloquear contacto
-app.post('/api/messaging/block', authMiddleware, (req, res) => {
-  const { identifier } = req.body;
-  res.json(autoresponder.blockContact(identifier));
-});
-app.post('/api/messaging/unblock', authMiddleware, (req, res) => {
-  const { identifier } = req.body;
-  res.json(autoresponder.unblockContact(identifier));
-});
-
-// Actualizar parámetro en tiempo real
-app.post('/api/messaging/config', authMiddleware, (req, res) => {
-  const { key, value } = req.body;
-  res.json(autoresponder.setConfig(key, value));
-});
+// ─── RUTAS DE MENSAJERÍA ───────────────────────────────────────────────────────
+const messagingRoutes = require('./routes/messaging');
+app.use('/api/messaging', authMiddleware, messagingRoutes);
 
 // ─── SKILLS (SKILL.md ecosystem) ─────────────────────────────────────────────
+const skillsRoutes = require('./routes/skills');
+app.use('/api/skills', authMiddleware, skillsRoutes);
 
-// Listar todos los skills
-app.get('/api/skills', authMiddleware, (req, res) => {
-  res.json({ skills: skills.listSkills() });
-});
-
-// Obtener contenido raw de un skill
-app.get('/api/skills/:id', authMiddleware, (req, res) => {
-  const content = skills.getSkillContent(req.params.id);
-  if (!content) return res.status(404).json({ error: 'Skill no encontrado' });
-  res.json({ content });
-});
-
-// Crear o actualizar un skill
-app.post('/api/skills', authMiddleware, (req, res) => {
-  const { id, name, description, icon, tags, content } = req.body;
-  if (!name) return res.status(400).json({ error: 'name es requerido' });
-  try {
-    const finalId = skills.createSkill({ id, name, description, icon, tags, content });
-    res.json({ success: true, id: finalId });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Eliminar un skill
-app.delete('/api/skills/:id', authMiddleware, (req, res) => {
-  const ok = skills.deleteSkill(req.params.id);
-  res.json({ success: ok });
-});
-
-// Instalar skill desde GitHub
-app.post('/api/skills/install-github', authMiddleware, async (req, res) => {
-  const { repoUrl } = req.body;
-  if (!repoUrl) return res.status(400).json({ error: 'repoUrl es requerido' });
-  try {
-    const result = await skills.installFromGitHub(repoUrl);
-    res.json(result);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
+// ─── CANVA OAuth + API ────────────────────────────────────────────────────────
+const canvaRoutes = require('./routes/canva_routes')(authMiddleware);
+app.use('/', canvaRoutes);
 
 // Health check (sin auth)
 app.get('/api/health', (req, res) => {
@@ -733,6 +368,16 @@ server.listen(PORT, () => {
   console.log('\n🔑 Credenciales guardadas en .env\n');
 });
 
-// Graceful shutdown
+// Graceful shutdown & Error Handling
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('🚨 [CRITICAL] Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('🚨 [CRITICAL] Uncaught Exception:', err);
+  // No exit here initially to avoid killing the panel forcefully, 
+  // but this ensures the panel doesn't silence errors.
+});
+
 process.on('SIGTERM', () => { screen.stopStream(); server.close(); });
 process.on('SIGINT', () => { screen.stopStream(); server.close(); process.exit(0); });

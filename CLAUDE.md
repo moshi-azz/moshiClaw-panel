@@ -6,6 +6,10 @@ Panel de administración web (Node.js + Express + vanilla JS) con:
 - Módulos: WhatsApp, Messenger, Autoresponder
 - JARVIS: asistente de voz integrado en el navegador (Web Speech API)
 
+### Nueva Arquitectura (Refactor 2026-03)
+- **Backend Modularizado:** `server.js` (punto de entrada) maneja WebSockets y la Inicialización, delegando todos los endpoints a la carpeta `routes/` (`system.js`, `files.js`, `messaging.js`, `scripts.js`, `canva_routes.js`, `skills.js`).
+- **Frontend Separado:** `public/index.html` es el esqueleto estructural. Los estilos globales residen en `public/styles.css` y la lógica JavaScript en `public/app.js` para optimizar caché y carga.
+
 ---
 
 ## JARVIS Voice Assistant (`public/index.html`)
@@ -84,7 +88,7 @@ Contenido en markdown...
 - Parcheo de SKILL.md: inyecta `<!-- MOSHICLAW_INSTALL: BASE_DIR=... -->` y reemplaza rutas relativas `python3 skills/<name>/` y `python3 src/<name>/` con rutas absolutas
 - Retorna `{ success, installed[], skipped[], total }`
 
-### API REST (`server.js`)
+### API REST (`routes/skills.js`)
 | Método | Ruta | Descripción |
 |--------|------|-------------|
 | GET | `/api/skills` | Lista todos los skills (metadata) |
@@ -127,6 +131,8 @@ El módulo `ai.js` implementa un loop de tool calls multi-proveedor (Gemini, Dee
 | `messaging_send/status/get_chats` | WhatsApp y Messenger |
 | `open_in_brave` | Abre Brave real del usuario |
 | `play_media` / `stop_media` | Audio/video via mpv |
+| `deploy_subagent` | Despliega agente de fondo autónomo |
+| `canva_*` | Suite interactiva (status, list_designs, create_design, export_design) |
 
 ### Bugs resueltos del sistema de tool calls (2026-03)
 

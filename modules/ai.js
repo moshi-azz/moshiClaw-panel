@@ -3,6 +3,7 @@ const { executeCommand } = require('./terminal');
 const browser = require('./browser');
 const whatsapp = require('./whatsapp');
 const messenger = require('./messenger');
+const canva    = require('./canva');
 const fs = require('fs');
 const path = require('path');
 
@@ -166,6 +167,38 @@ const AI_TOOLS = {
     description: 'Lee el contenido completo de un skill especializado. SIEMPRE llamá este tool ANTES de responder cuando el tema del usuario coincida con un skill disponible. El skill contiene conocimiento experto que mejorará significativamente tu respuesta y que no tenés por defecto.',
     parameters: {
       id: { type: 'string', description: 'ID del skill a leer, exactamente como aparece en la lista de skills disponibles (ej: modo-conciso, experto-en-codigo)' }
+    }
+  },
+  canva_status: {
+    description: 'Verifica si Canva está conectado y muestra el perfil del usuario. Usá esto antes de cualquier operación con Canva para confirmar que la cuenta está vinculada.',
+    parameters: {}
+  },
+  canva_list_designs: {
+    description: 'Lista los diseños de Canva del usuario, opcionalmente filtrando por texto. Devuelve IDs, títulos y URLs de edición.',
+    parameters: {
+      query: { type: 'string', description: 'Texto opcional para filtrar diseños por nombre' },
+      limit: { type: 'string', description: 'Cantidad máxima de diseños a devolver (por defecto 20)' }
+    }
+  },
+  canva_create_design: {
+    description: 'Crea un nuevo diseño en blanco en Canva. Devuelve el ID y la URL para editarlo. Tipos válidos: presentation, poster, instagram_post, flyer, youtube_thumbnail, facebook_post, resume, infographic, logo, card, etc.',
+    parameters: {
+      design_type: { type: 'string', description: 'Tipo de diseño (ej: "presentation", "poster", "instagram_post", "flyer", "youtube_thumbnail", "resume", "logo")' },
+      title: { type: 'string', description: 'Título del nuevo diseño' }
+    }
+  },
+  canva_export_design: {
+    description: 'Exporta un diseño de Canva a PDF, PNG, JPG, PPTX, GIF o MP4. Devuelve la URL de descarga del archivo exportado.',
+    parameters: {
+      design_id: { type: 'string', description: 'ID del diseño a exportar (obtenido de canva_list_designs o canva_create_design)' },
+      format: { type: 'string', description: 'Formato de exportación: "pdf", "png", "jpg", "pptx", "gif" o "mp4" (por defecto "pdf")' }
+    }
+  },
+  deploy_subagent: {
+    description: 'Despliega un sub-agente de IA en segundo plano para realizar una tarea compleja de forma autónoma. El sub-agente tiene acceso a todas tus herramientas. Usalo para delegar investigaciones largas o tareas repetitivas.',
+    parameters: {
+      task: { type: 'string', description: 'La descripción detallada de la tarea que el sub-agente debe cumplir.' },
+      name: { type: 'string', description: 'Nombre corto identificativo para el sub-agente.' }
     }
   }
 };
@@ -390,9 +423,80 @@ async function runTool(toolName, args, onToolCall, apiKey) {
     }
   }
   if (toolName === 'step_update') {
-    if (onToolCall) onToolCall({ type: 'step', message: args.message });
-    return 'Progreso enviado al usuario.';
+    if (onToolCall) onToolCall({ type: 'step_update', message: args.message });
+    return 'Mensaje de actualización enviado al usuario exitosamente.';
   }
+
+  // ─── CANVA ────────────────────────────────────────────────────────────────
+  if (toolName === 'canva_status') {
+    if (!canva.isConnected()) return '❌ Canva no está conectado. El usuario debe ir al panel de Canva y hacer clic en "Conectar cuenta".';
+    try {
+      const profile = await canva.getProfile();
+      const user = profile.user || profile;
+      return `✅ Canva conectado. Usuario: ${user.display_name || user.email || JSON.stringify(user)}`;
+    } catch (e) {
+      return `Canva conectado pero error obteniendo perfil: ${e.message}`;
+    }
+  }
+
+  if (toolName === 'canva_list_designs') {
+    if (!canva.isConnected()) return '❌ Canva no conectado. Solicite al usuario que inicie sesión en el panel.';
+    try {
+      const resp = await canva.getFolders(); // canva.js usa getFolders para listar diseños en root
+      let items = resp.items || [];
+      if (args.query) items = items.filter(i => (i.title || i.name).toLowerCase().includes(args.query.toLowerCase()));
+      const limit = parseInt(args.limit) || 20;
+      items = items.slice(0, limit);
+      if (items.length === 0) return 'No se encontraron diseños.';
+      return items.map(i => `- [${i.id}] ${i.title || i.name} (Edit: ${i.urls?.edit_url || 'N/A'})`).join('\n');
+    } catch (e) {
+      return `Error listando diseños: ${e.message}`;
+    }
+  }
+
+  if (toolName === 'canva_create_design') {
+    if (!canva.isConnected()) return '❌ Canva no conectado.';
+    try {
+      // Usamos el endpoint de designs para crear. canva.js tiene createDesign
+      const result = await canva.createDesign(args.design_type, args.title);
+      return `✅ Diseño creado exitosamente.\nID: ${result.design.id}\nURL para editar: ${result.design.urls?.edit_url}`;
+    } catch (e) {
+      return `Error creando diseño: ${e.message}`;
+    }
+  }
+
+  if (toolName === 'canva_export_design') {
+    if (!canva.isConnected()) return '❌ Canva no conectado.';
+    try {
+      const format = (args.format || 'pdf').toLowerCase();
+      const result = await canva.exportDesign(args.design_id, format);
+      return `✅ Exportación iniciada. En unos momentos estará lista en los trabajos de exportación (Job ID: ${result.job.id}).`;
+    } catch (e) {
+      return `Error exportando diseño: ${e.message}`;
+    }
+  }
+
+  // ─── SUB-AGENTES ─────────────────────────────────────────────────────────
+  if (toolName === 'deploy_subagent') {
+    const subAgentName = args.name || `Sub-Agent-${Math.floor(Math.random()*1000)}`;
+    if (onToolCall) onToolCall({ type: 'step_update', message: `🚀 Desplegando sub-agente: ${subAgentName} para tarea compleja...` });
+    
+    // Spawn a background process or promise
+    // To avoid blocking, we will just call processChat asynchronously and return immediately.
+    setTimeout(async () => {
+      try {
+        const result = await processChat("SYSTEM-SUBAGENT", args.task, "sub-agente");
+        // Enviar el resultado de vuelta al root session (hacky pero efectivo para demostración)
+        const history = chatHistories.get(apiKey) || []; // apiKey holds session id in this context
+        history.push({ role: 'user', content: `[RESULTADO DEL SUB-AGENTE '${subAgentName}']: ${result}` });
+      } catch (err) {
+        console.error(`Error en sub-agente ${subAgentName}:`, err);
+      }
+    }, 100);
+
+    return `✅ Sub-agente '${subAgentName}' desplegado en segundo plano. Te informará el resultado cuando termine.`;
+  }
+
   if (toolName === 'browser_scroll') {
     const amountMap = { small: 300, medium: 600, large: 1200 };
     const delta = (args.direction === 'up' ? -1 : 1) * (amountMap[args.amount] || 600);
@@ -571,7 +675,12 @@ async function chatWithGemini(apiKey, selectedModel, message, sessionId, autoExe
             },
             required: ['message']
           }
-        }
+        },
+        { name: 'canva_status', description: AI_TOOLS.canva_status.description, parameters: { type: 'object', properties: {} } },
+        { name: 'canva_list_designs', description: AI_TOOLS.canva_list_designs.description, parameters: { type: 'object', properties: { query: { type: 'string' }, limit: { type: 'string' } } } },
+        { name: 'canva_create_design', description: AI_TOOLS.canva_create_design.description, parameters: { type: 'object', properties: { design_type: { type: 'string' }, title: { type: 'string' } }, required: ['design_type'] } },
+        { name: 'canva_export_design', description: AI_TOOLS.canva_export_design.description, parameters: { type: 'object', properties: { design_id: { type: 'string' }, format: { type: 'string' } }, required: ['design_id'] } },
+        { name: 'deploy_subagent', description: AI_TOOLS.deploy_subagent.description, parameters: { type: 'object', properties: { task: { type: 'string' }, name: { type: 'string' } }, required: ['task', 'name'] } }
       ]
     }]
   });
@@ -592,7 +701,7 @@ async function chatWithGemini(apiKey, selectedModel, message, sessionId, autoExe
 
     for (const call of calls) {
       let toolResult;
-      const isAutoTool = call.name.startsWith('browser_') || call.name === 'generate_image' || call.name.startsWith('messaging_') || call.name === 'open_in_brave' || call.name === 'play_media' || call.name === 'stop_media' || call.name === 'write_file' || call.name === 'step_update' || call.name === 'read_file' || call.name === 'read_skill';
+      const isAutoTool = call.name.startsWith('browser_') || call.name === 'generate_image' || call.name.startsWith('messaging_') || call.name === 'open_in_brave' || call.name === 'play_media' || call.name === 'stop_media' || call.name === 'write_file' || call.name === 'step_update' || call.name === 'read_file' || call.name === 'read_skill' || call.name.startsWith('canva_') || call.name === 'deploy_subagent';
       const toolId = `tc_${Date.now()}_${_toolCounter++}`;
       if (autoExecute || isAutoTool) {
         onToolCall && onToolCall({ type: 'executing', name: call.name, args: call.args, toolId });
@@ -823,7 +932,7 @@ async function chatWithDeepSeek(apiKey, selectedModel, message, sessionId, autoE
     for (const toolCall of assistantMessage.tool_calls) {
       const args = JSON.parse(toolCall.function.arguments);
       let toolResult;
-      const isAutoTool = toolCall.function.name.startsWith('browser_') || toolCall.function.name === 'generate_image' || toolCall.function.name.startsWith('messaging_') || toolCall.function.name === 'open_in_brave' || toolCall.function.name === 'play_media' || toolCall.function.name === 'stop_media' || toolCall.function.name === 'write_file' || toolCall.function.name === 'step_update' || toolCall.function.name === 'read_file' || toolCall.function.name === 'read_skill';
+      const isAutoTool = toolCall.function.name.startsWith('browser_') || toolCall.function.name === 'generate_image' || toolCall.function.name.startsWith('messaging_') || toolCall.function.name === 'open_in_brave' || toolCall.function.name === 'play_media' || toolCall.function.name === 'stop_media' || toolCall.function.name === 'write_file' || toolCall.function.name === 'step_update' || toolCall.function.name === 'read_file' || toolCall.function.name === 'read_skill' || toolCall.function.name.startsWith('canva_') || toolCall.function.name === 'deploy_subagent';
       const toolId = `tc_${Date.now()}_${_dsToolCounter++}`;
 
       if (autoExecute || isAutoTool) {
@@ -1079,7 +1188,7 @@ async function chatWithOllama(selectedModel, message, sessionId, autoExecute, on
     for (const toolCall of assistantMessage.tool_calls) {
       const args = JSON.parse(toolCall.function.arguments);
       let toolResult;
-      const isAutoTool = toolCall.function.name.startsWith('browser_') || toolCall.function.name.startsWith('messaging_') || toolCall.function.name === 'open_in_brave' || toolCall.function.name === 'play_media' || toolCall.function.name === 'stop_media' || toolCall.function.name === 'write_file' || toolCall.function.name === 'step_update' || toolCall.function.name === 'read_file' || toolCall.function.name === 'read_skill';
+      const isAutoTool = toolCall.function.name.startsWith('browser_') || toolCall.function.name.startsWith('messaging_') || toolCall.function.name === 'open_in_brave' || toolCall.function.name === 'play_media' || toolCall.function.name === 'stop_media' || toolCall.function.name === 'write_file' || toolCall.function.name === 'step_update' || toolCall.function.name === 'read_file' || toolCall.function.name === 'read_skill' || toolCall.function.name.startsWith('canva_') || toolCall.function.name === 'deploy_subagent';
       const toolId = `tc_${Date.now()}_${_ollamaToolCounter++}`;
 
       if (autoExecute || isAutoTool) {

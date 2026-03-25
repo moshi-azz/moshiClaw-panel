@@ -31,5 +31,8 @@
   },
   "devDependencies": {
     "nodemon": "^3.0.3"
+  },
+  "nodemonConfig": {
+    "ignore": ["data/*", "public/uploads/*", "node_modules/*"]
   }
 }

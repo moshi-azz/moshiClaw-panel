@@ -118,7 +118,11 @@ async function sendChatMessage() {
 function handleToolEvent(msg) {
   const container = qs('#chat-messages');
   const toolId = msg.toolId || msg.confirmId;
-  const { toolName, args, result, needsConfirmation, isAuto, status, stepMsg } = msg;
+  // 'type' fue extraído por server.js y renombrado a 'toolType'
+  const needsConfirmation = msg.toolType === 'needs_confirmation';
+  // El backend envía 'name', no 'toolName'
+  const { name: toolName, args, result, isAuto, stepMsg } = msg;
+  const status = result ? 'ok' : 'pending';
 
   // Si es un update de paso (step_update), mostramos un mensaje sutil
   if (toolName === 'step_update' || stepMsg) {
@@ -142,19 +146,21 @@ function handleToolEvent(msg) {
 
   let html = `
     <div class="tool-header">
-      <span class="tool-name"><i data-lucide="wrench"></i> ${toolName}</span>
+      <span class="tool-name"><i data-lucide="wrench"></i> ${toolName || '?'}</span>
       <span class="tool-status ${status}">${status==='pending'?'Ejecutando...':status==='error'?'Error':'Ok'}</span>
     </div>
     <div class="tool-args"><code>${JSON.stringify(args, null, 1)}</code></div>
   `;
 
   if (needsConfirmation) {
+    // Los botones usan confirmId (no toolId) porque es lo que el servidor busca en pendingConfirmations
+    const cId = msg.confirmId;
     html += `
-      <div class="tool-confirm" id="confirm-${toolId}">
+      <div class="tool-confirm" id="confirm-${cId}">
         <p>¿Autorizar ejecución de esta herramienta?</p>
         <div style="display:flex; gap:8px; margin-top:8px;">
-          <button class="btn-tool ok" onclick="executeConfirmedTool('${toolId}')">SÍ, EJECUTAR</button>
-          <button class="btn-tool no" onclick="cancelToolExecution('${toolId}')">NO</button>
+          <button class="btn-tool ok" onclick="executeConfirmedTool('${cId}')">SÍ, EJECUTAR</button>
+          <button class="btn-tool no" onclick="cancelToolExecution('${cId}')">NO</button>
         </div>
       </div>
     `;

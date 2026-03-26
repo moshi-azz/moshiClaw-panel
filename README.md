@@ -22,6 +22,7 @@ Panel de control remoto y avanzado para tu PC Ubuntu. Accede desde el navegador 
 - **🌗 Temas Dinámicos** — Soporte nativo para modo Claro y Oscuro con una interfaz premium inspirada en glassmorphism.
 - 🔔 **Notificaciones Push** — Alertas instantáneas si la CPU o RAM superan límites críticos o si un agente IA termina una tarea.
 - ⚡ **Arquitectura Modular 2026** — Sistema de herramientas (tools) extensible y frontend desacoplado en micro-módulos asíncronos para máxima velocidad.
+- 🐍 **Python Bridge** — La IA puede escribir y ejecutar código Python inline, accediendo a `pyautogui`, `opencv`, `pytesseract` (OCR), `pynput`, `psutil` y más, sin cambiar el frontend ni la arquitectura.
 
 ---
 
@@ -128,6 +129,27 @@ Dentro de la PWA, toca el ícono de engranaje (⚙️) para configurar:
 
 > [!IMPORTANT]
 > **Privacidad Local:** Las API keys se guardan exclusivamente en el almacenamiento local (`localStorage`) de tu navegador de móvil. **Nunca viajan ni se guardan en el servidor `moshiClaw`.** Además, el panel soporta la generación de imágenes mediante la herramienta `generate_image` integrada.
+
+---
+
+## 🐍 Python Bridge
+
+La IA dispone de dos herramientas para ejecutar Python directamente:
+
+| Herramienta | Descripción |
+|-------------|-------------|
+| `python_run` | Ejecuta un bloque de código Python inline. `DISPLAY=:0` se configura automáticamente para herramientas GUI. Timeout configurable (default 60s, máx 5min). |
+| `python_pip_install` | Instala paquetes vía pip en tiempo real si la IA necesita una librería nueva. |
+
+**Librerías disponibles por defecto** (incluidas en `setup.sh`):
+- `pyautogui` — control de mouse, teclado y **image matching** (clic en botones por imagen, sin coordenadas fijas)
+- `opencv-python` — visión por computadora, detección de regiones en pantalla
+- `pytesseract` — OCR: leer texto de la pantalla como si fuera una imagen
+- `pynput` — captura y envío de eventos de teclado/mouse a nivel global
+- `psutil` — información detallada de procesos, CPU, RAM y discos
+- `numpy` / `Pillow` — procesamiento de imágenes y datos
+
+El frontend, WebSockets y el flujo de chat no se ven afectados: Python es una capa de ejecución adicional, no un reemplazo.
 
 ---
 

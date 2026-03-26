@@ -104,8 +104,8 @@ module.exports = {
     },
     deploy_subagent: async (args, context) => {
       const { task, name } = args;
-      const id = await subagents.createSubagent(name, task, context.sessionId, context.apiKey);
-      if (context.onToolCall) context.onToolCall({ type: 'step_update', message: `🚀 Sub-agente "${name}" desplegado (ID: ${id.slice(0,8)}). Podes consultar su estado con check_subagents.` });
+      const id = await subagents.createSubagent(name, task, context.sessionId, context.apiKey, context.provider, context.model);
+      if (context.onToolCall) context.onToolCall({ type: 'step_update', message: `🚀 Sub-agente "${name}" desplegado (ID: ${id.slice(0,8)}) usando ${context.provider || 'gemini'}/${context.model || 'default'}.` });
       return `✅ Agente desplegado con ID: ${id}. Seguí con tus otras tareas, te avisaré cuando termine o podés consultar con check_subagents.`;
     },
     check_subagents: async (args, context) => {

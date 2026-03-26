@@ -99,10 +99,10 @@ const Artifacts = {
         const frame = document.getElementById('artifact-frame');
         const doc = frame.contentWindow.document;
         doc.open();
-        doc.write(content);
+        doc.write(finalContent);  // usar finalContent (ya decodificado si venía con encodeURIComponent)
         doc.close();
       } else {
-        contentEl.innerHTML = `<pre class="artifact-code"><code>${this.escapeHtml(content)}</code></pre>`;
+        contentEl.innerHTML = `<pre class="artifact-code"><code>${this.escapeHtml(finalContent)}</code></pre>`;
       }
     }
     

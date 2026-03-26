@@ -79,12 +79,12 @@ loadPersistedHistories();
 const AI_TOOLS = aiTools.definitions;
 
 // Ejecutar herramienta real
-async function runTool(toolName, args, onToolCall, apiKey, sessionId) {
+async function runTool(toolName, args, onToolCall, apiKey, sessionId, provider, model) {
   const handler = aiTools.handlers[toolName];
   if (!handler) return `Herramienta desconocida: ${toolName}`;
-  
+
   try {
-    const result = await handler(args, { onToolCall, apiKey, sessionId });
+    const result = await handler(args, { onToolCall, apiKey, sessionId, provider, model });
     return result;
   } catch (err) {
     console.error(`Error ejecutando tool ${toolName}:`, err);
@@ -137,7 +137,7 @@ async function chatWithGemini(apiKey, selectedModel, message, sessionId, autoExe
       const toolId = `tc_${Date.now()}_${_toolCounter++}`;
       if (autoExecute || isAutoTool) {
         onToolCall && onToolCall({ type: 'executing', name: call.name, args: call.args, toolId });
-        toolResult = await runTool(call.name, call.args, onToolCall, apiKey, sessionId);
+        toolResult = await runTool(call.name, call.args, onToolCall, apiKey, sessionId, 'gemini', selectedModel);
         onToolCall && onToolCall({ type: 'result', name: call.name, result: toolResult, toolId });
       } else {
         // Modo confirmación: pausar y esperar
@@ -224,7 +224,7 @@ async function chatWithDeepSeek(apiKey, selectedModel, message, sessionId, autoE
 
       if (autoExecute || isAutoTool) {
         onToolCall && onToolCall({ type: 'executing', name: toolCall.function.name, args, toolId });
-        toolResult = await runTool(toolCall.function.name, args, onToolCall, apiKey, sessionId);
+        toolResult = await runTool(toolCall.function.name, args, onToolCall, apiKey, sessionId, 'deepseek', selectedModel);
         onToolCall && onToolCall({ type: 'result', name: toolCall.function.name, result: toolResult, toolId });
       } else {
         toolResult = await waitForConfirmation(sessionId, toolCall.function.name, args, onToolCall, toolId);
@@ -343,7 +343,7 @@ async function chatWithOllama(selectedModel, message, sessionId, autoExecute, on
 
       if (autoExecute || isAutoTool) {
         onToolCall && onToolCall({ type: 'executing', name: toolCall.function.name, args, toolId });
-        toolResult = await runTool(toolCall.function.name, args, onToolCall, null, sessionId);
+        toolResult = await runTool(toolCall.function.name, args, onToolCall, null, sessionId, 'ollama', selectedModel);
         onToolCall && onToolCall({ type: 'result', name: toolCall.function.name, result: toolResult, toolId });
       } else {
         toolResult = await waitForConfirmation(sessionId, toolCall.function.name, args, onToolCall, toolId);
@@ -397,7 +397,8 @@ const pendingConfirmations = new Map();
 async function waitForConfirmation(sessionId, toolName, args, onToolCall, toolId) {
   return new Promise((resolve) => {
     const confirmId = `${sessionId}_${Date.now()}`;
-    pendingConfirmations.set(confirmId, resolve);
+    // Guardamos resolve + toolName + args para no depender del frontend al confirmar
+    pendingConfirmations.set(confirmId, { resolve, toolName, args });
     onToolCall && onToolCall({
       type: 'needs_confirmation',
       confirmId,
@@ -415,23 +416,15 @@ async function waitForConfirmation(sessionId, toolName, args, onToolCall, toolId
   });
 }
 
-function confirmToolExecution(confirmId) {
-  const resolve = pendingConfirmations.get(confirmId);
-  if (resolve) {
-    pendingConfirmations.delete(confirmId);
-    return true;
-  }
-  return false;
-}
+// confirmId es suficiente; toolName y args ya están guardados en el mapa
+async function executeConfirmedTool(confirmId) {
+  const pending = pendingConfirmations.get(confirmId);
+  if (!pending) return false;
 
-async function executeConfirmedTool(confirmId, toolName, args) {
-  const resolve = pendingConfirmations.get(confirmId);
-  if (!resolve) return false;
-  
-  // Try to find the apiKey for this session
+  const { resolve, toolName, args } = pending;
   const sessionId = confirmId.split('_')[0];
   const apiKey = sessionApiKeys.get(sessionId);
-  
+
   pendingConfirmations.delete(confirmId);
   const result = await runTool(toolName, args, null, apiKey);
   resolve(result);
@@ -439,10 +432,10 @@ async function executeConfirmedTool(confirmId, toolName, args) {
 }
 
 function cancelToolExecution(confirmId) {
-  const resolve = pendingConfirmations.get(confirmId);
-  if (!resolve) return false;
+  const pending = pendingConfirmations.get(confirmId);
+  if (!pending) return false;
   pendingConfirmations.delete(confirmId);
-  resolve('El usuario canceló la ejecución del comando.');
+  pending.resolve('El usuario canceló la ejecución del comando.');
   return true;
 }
 
@@ -468,20 +461,31 @@ function getSystemPrompt(activeSkillId = null, isLite = false) {
   const os = require('os');
   
   if (isLite) {
+    let liteSkillsSection = '';
+    try {
+      const skillsModule = require('./skills');
+      const catalog = skillsModule.listSkills();
+      if (catalog.length > 0) {
+        const catalogList = catalog.map(s => `  • ${s.id} — ${s.icon} ${s.name}: ${s.description}`).join('\n');
+        const hint = activeSkillId ? `\n⭐ El usuario preseleccionó el skill "${activeSkillId}". Cargalo con read_skill("${activeSkillId}") primero.` : '';
+        liteSkillsSection = `\n\nSKILLS DISPONIBLES (usá read_skill(id) si el tema coincide):\n${catalogList}${hint}`;
+      }
+    } catch {}
+
     return `Sos moshiClaw, una terminal inteligente con acceso SUDO total.
 HOSTNAME: ${os.hostname()}
 DIR: /home/moshi/moshiClaw-panel/
 
-REGLA DE ORO: Tenés acceso SUDO real. Usá execute_command, write_file o read_file. 
-NUNCA digas que no tenés acceso. 
+REGLA DE ORO: Tenés acceso SUDO real. Usá execute_command, write_file o read_file.
+NUNCA digas que no tenés acceso.
 
 IMPORTANTE: SI USÁS UNA HERRAMIENTA, HACELO POR LA API. NO escribas JSON en el chat.
 
-Reglas: 
-1. Usá step_update para avisar qué vas a hacer. 
-2. No encadenes comandos gigantes. 
-3. Usá write_file para archivos. 
-4. Respondé MUY breve y conciso.`;
+Reglas:
+1. Usá step_update para avisar qué vas a hacer.
+2. No encadenes comandos gigantes.
+3. Usá write_file para archivos.
+4. Respondé MUY breve y conciso.${liteSkillsSection}`;
   }
 
   let prompt = `Sos moshiClaw, un agente de IA autónomo y avanzado integrado en un Panel de Control.
@@ -625,6 +629,7 @@ Reglas:
 2. Usá type="svg" para gráficos o diagramas.
 3. Usá type="code" para scripts largos o archivos de configuración.
 4. Podés referenciar varios archivos en un mismo chat usando distintos artifacts.
+5. [CRÍTICO] Si usás write_file para guardar un archivo HTML, SVG o de código, SIEMPRE incluí también el contenido completo dentro de tags <artifact> en tu respuesta de texto. Guardar el archivo y mostrar el artifact NO son excluyentes: hacé los dos. Nunca digas "no puedo mostrar el artifact" — siempre podés incluirlo en tu respuesta.
 
 ══════════════════════════════════════════════════
 🤖 SUB-AGENTES AUTÓNOMOS

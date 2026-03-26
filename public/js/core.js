@@ -606,17 +606,32 @@ function renderMarkdown(text) {
 
   // Re-procesar con placeholders para evitar escape de HTML en las tarjetas
   const placeholders = [];
-  processed = text.replace(/<artifact\s+title="(.*?)"\s+type="(.*?)"(?:\s+id="(.*?)")?>([\s\S]*?)<\/artifact>/gi, (match, title, type, id, content) => {
-    const artId = id || `art_${Date.now()}_${Math.floor(Math.random()*1000)}`;
+
+  function makeArtifactPlaceholder(content, type, title) {
+    const artId = `art_${Date.now()}_${Math.floor(Math.random()*1000)}`;
     const idx = placeholders.length;
-    placeholders.push(`<div class="artifact-card-incall" onclick="Artifacts.show('${artId}', '${type}', '${title}', \`\${encodeURIComponent(\`${content.trim()}\`)}\`)">
+    const encodedContent = encodeURIComponent(content.trim());
+    const safeTitle = (title || type).replace(/'/g, "\\'");
+    placeholders.push(`<div class="artifact-card-incall" onclick="Artifacts.show('${artId}', '${type}', '${safeTitle}', '${encodedContent}')">
       <div class="art-icon"><i data-lucide="layout"></i></div>
       <div class="art-info">
-        <div class="art-title">${title}</div>
+        <div class="art-title">${title || type.toUpperCase()}</div>
         <div class="art-subtitle">Ver ${type}</div>
       </div>
     </div>`);
     return `__ARTIFACT_PLACEHOLDER_${idx}__`;
+  }
+
+  // 1. Tags <artifact> explícitos
+  processed = text.replace(/<artifact\s+title="(.*?)"\s+type="(.*?)"(?:\s+id="(.*?)")?>([\s\S]*?)<\/artifact>/gi, (match, title, type, id, content) => {
+    return makeArtifactPlaceholder(content, type, title);
+  });
+
+  // 2. Bloques ```html``` y ```svg``` → auto-convertir a artifact
+  processed = processed.replace(/```(html|svg)\s*\n([\s\S]*?)```/gi, (match, lang, content) => {
+    const type = lang.toLowerCase();
+    const title = type === 'html' ? 'HTML' : 'SVG';
+    return makeArtifactPlaceholder(content, type, title);
   });
 
   let rendered = processed

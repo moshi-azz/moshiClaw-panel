@@ -1,5 +1,10 @@
+const system = require('./system_tools');
+const browser = require('./browser_tools');
+const messaging = require('./messaging_tools');
+const meta = require('./ai_meta_tools');
 const gui = require('./gui_tools');
 const productivity = require('./productivity_tools');
+const python = require('./python_tools');
 
 const ALL_TOOLS = {
   definitions: {
@@ -8,7 +13,8 @@ const ALL_TOOLS = {
     ...messaging.definitions,
     ...meta.definitions,
     ...gui.definitions,
-    ...productivity.definitions
+    ...productivity.definitions,
+    ...python.definitions
   },
   handlers: {
     ...system.handlers,
@@ -16,7 +22,8 @@ const ALL_TOOLS = {
     ...messaging.handlers,
     ...meta.handlers,
     ...gui.handlers,
-    ...productivity.handlers
+    ...productivity.handlers,
+    ...python.handlers
   },
 
   // Formateador para Gemini SDK
@@ -33,9 +40,8 @@ const ALL_TOOLS = {
   },
 
   // Formateador para OpenAI / DeepSeek / Ollama SDK (LITE)
-  // Solo incluye herramientas de sistema esenciales para mejorar performance en modelos locales
   getLiteOpenAITools() {
-    const essential = ['execute_command', 'read_file', 'write_file', 'step_update', 'browser_navigate', 'browser_get_content', 'browser_screenshot'];
+    const essential = ['execute_command', 'read_file', 'write_file', 'step_update', 'read_skill', 'browser_navigate', 'browser_get_content', 'browser_screenshot'];
     return Object.entries(this.definitions)
       .filter(([name]) => essential.includes(name))
       .map(([name, def]) => ({

@@ -2,13 +2,17 @@
 const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
+const EventEmitter = require('events');
 
 const SUBAGENTS_DIR = path.join(__dirname, '../data/subagents');
 if (!fs.existsSync(SUBAGENTS_DIR)) fs.mkdirSync(SUBAGENTS_DIR, { recursive: true });
 
 const tasks = new Map();
 
-async function createSubagent(name, taskDescription, parentSessionId, apiKey) {
+// Permite que server.js escuche completions y notifique por WebSocket
+const emitter = new EventEmitter();
+
+async function createSubagent(name, taskDescription, parentSessionId, apiKey, provider, model) {
   const id = uuidv4();
   const task = {
     id,
@@ -18,14 +22,15 @@ async function createSubagent(name, taskDescription, parentSessionId, apiKey) {
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     result: null,
-    parentId: parentSessionId
+    parentId: parentSessionId,
+    provider: provider || 'gemini',
+    model: model || null  // null → ai.js usará el default del proveedor
   };
 
   tasks.set(id, task);
   saveTask(task);
 
-  // Iniciar ejecución asíncrona (esto es una simplificación, 
-  // en un sistema real usaríamos un worker thread o un proceso aparte)
+  // Iniciar ejecución asíncrona
   executeTask(id, apiKey).catch(err => {
     task.status = 'error';
     task.result = err.message;
@@ -43,9 +48,9 @@ async function executeTask(id, apiKey) {
   
   try {
     const result = await ai.chat({
-      provider: 'gemini',
+      provider: task.provider || 'gemini',
       apiKey: apiKey,
-      model: 'gemini-1.5-flash',
+      model: task.model || undefined,  // undefined → cada proveedor usa su propio default
       message: `TAREA AUTÓNOMA: ${task.description}\n\nTerminá tu respuesta con "FIN_DE_TAREA: [resultado final]".`,
       sessionId: `subagent_${id}`,
       autoExecute: true
@@ -55,10 +60,15 @@ async function executeTask(id, apiKey) {
     task.result = result;
     task.updatedAt = new Date().toISOString();
     saveTask(task);
+
+    // Notificar a server.js para que haga push al frontend vía WebSocket
+    emitter.emit('completed', { parentId: task.parentId, taskName: task.name, result, status: 'completed' });
   } catch (err) {
     task.status = 'error';
     task.result = err.message;
     saveTask(task);
+
+    emitter.emit('completed', { parentId: task.parentId, taskName: task.name, result: err.message, status: 'error' });
     throw err;
   }
 }
@@ -73,4 +83,4 @@ function getTasks(parentId = null) {
   return allTasks;
 }
 
-module.exports = { createSubagent, getTasks };
+module.exports = { createSubagent, getTasks, emitter };

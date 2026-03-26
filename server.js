@@ -128,7 +128,8 @@ wsEvents.on('connection', (ws, req, user) => {
     if (data.type === 'chat') {
       await handleChatMessage(ws, data, user);
     } else if (data.type === 'confirm_tool') {
-      await ai.executeConfirmedTool(data.confirmId, data.toolName, data.args);
+      // toolName y args ya están guardados en pendingConfirmations, no hace falta que el frontend los envíe
+      await ai.executeConfirmedTool(data.confirmId);
     } else if (data.type === 'cancel_tool') {
       ai.cancelToolExecution(data.confirmId);
     } else if (data.type === 'clear_chat') {
@@ -173,10 +174,30 @@ statsHistory.init(monitoring);
 
 // ─── CHAT HANDLER ─────────────────────────────────────────────────────────────
 const activeAiRequests = new Map();
+// Mapa sessionId → ws para poder notificar cuando un subagente termina
+const sessionWsMap = new Map();
+
+// Escuchar completions de subagentes y hacer push al frontend
+subagents.emitter.on('completed', ({ parentId, taskName, result, status }) => {
+  const ws = sessionWsMap.get(parentId);
+  if (ws && ws.readyState === 1 /* WebSocket.OPEN */) {
+    const icon = status === 'completed' ? '✅' : '❌';
+    const shortResult = result ? result.slice(0, 300) : 'sin resultado';
+    try {
+      ws.send(JSON.stringify({
+        type: 'chat_response',
+        content: `${icon} **Sub-agente "${taskName}" terminó** (${status})\n\n${shortResult}`,
+        provider: 'subagent'
+      }));
+    } catch {}
+  }
+});
 
 async function handleChatMessage(ws, data, user) {
   const { message, provider, model, apiKey, sessionId, autoExecute, activeSkillId, isExpert } = data;
   const sId = sessionId || user.user;
+  // Registrar la conexión activa de esta sesión para notificaciones de subagentes
+  sessionWsMap.set(sId, ws);
 
   if (!message || !provider || (!apiKey && provider !== 'ollama')) {
     ws.send(JSON.stringify({ type: 'chat_error', error: 'Faltan parámetros: message, provider, apiKey' }));

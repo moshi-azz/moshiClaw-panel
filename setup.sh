@@ -42,9 +42,7 @@ else
 fi
 
 # ─── Dependencias del sistema ─────────────────────────────────────────────────
-step "Instalando dependencias del sistema..."
-
-# node-pty necesita python3 y build-essential
+# Dependencias para node-pty, Puppeteer (Chromium), certificados y utilidades
 sudo apt install -y -qq \
   build-essential \
   python3 \
@@ -56,7 +54,23 @@ sudo apt install -y -qq \
   x11-utils \
   scrot \
   ffmpeg \
-  gnome-screenshot
+  gnome-screenshot \
+  psmisc \
+  openssl \
+  libnss3 \
+  libatk1.0-0 \
+  libatk-bridge2.0-0 \
+  libcups2 \
+  libdrm2 \
+  libxcomposite1 \
+  libxdamage1 \
+  libxrandr2 \
+  libgbm1 \
+  libasound2 \
+  libpango-1.0-0 \
+  libpangocairo-1.0-0 \
+  libxshmfence1 \
+  libx11-xcb1
 
 info "Dependencias del sistema instaladas"
 
@@ -75,12 +89,40 @@ else
   info "ngrok $(ngrok --version) ya instalado"
 fi
 
+# ─── Ollama ──────────────────────────────────────────────────────────────────
+step "Verificando Ollama (IA Local)..."
+if command -v ollama &>/dev/null; then
+  info "Ollama ya instalado"
+else
+  echo -ne "${YELLOW}[?] ¿Deseas instalar Ollama (para correr IA local / LLMs)? [s/N]: ${NC}"
+  read -r INSTALL_OLLAMA
+  if [[ "$INSTALL_OLLAMA" =~ ^[sS]$ ]]; then
+    warn "Instalando Ollama..."
+    curl -fsSL https://ollama.com/install.sh | sh
+    info "Ollama instalado"
+  else
+    info "Ollama omitido (podés instalarlo después con: curl -fsSL https://ollama.com/install.sh | sh)"
+  fi
+fi
+
 # ─── NPM packages ────────────────────────────────────────────────────────────
 step "Instalando dependencias npm..."
 cd "$(dirname "$0")"
 npm install --production
 
 info "npm packages instalados"
+
+# ─── Librerías Python (Python Bridge para la IA) ─────────────────────────────
+step "Instalando librerías Python para el Python Bridge..."
+pip3 install --break-system-packages --quiet \
+  pyautogui \
+  pynput \
+  opencv-python \
+  pytesseract \
+  psutil \
+  pillow \
+  numpy 2>/dev/null || true
+info "Librerías Python instaladas (pyautogui, opencv, pytesseract, pynput, psutil)"
 
 # ─── Configurar DISPLAY ──────────────────────────────────────────────────────
 step "Configurando variables de entorno..."
